@@ -121,14 +121,6 @@ function createApp() {
   });
   app.use(globalLimiter);
 
-  const strictLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 20,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: 'Troppi tentativi, riprova tra 15 minuti.' }
-  });
-
   // ========================================================
   // Helper: user in locals
   // ========================================================
@@ -150,7 +142,7 @@ function createApp() {
   // ========================================================
   // API ROUTERS (sotto /api/*)
   // ========================================================
-  app.use('/api/auth', strictLimiter, authRouter);
+  app.use('/api/auth', authRouter);
   app.use('/api/catalog', catalogRouter);
   app.use('/api/payment', requireAuth, paymentRouter);
   app.use('/api/pdf', requireAuth, requireTwoFaVerified, pdfRouter);

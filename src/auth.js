@@ -1,6 +1,7 @@
 'use strict';
 
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const router = express.Router();
 
 const {
@@ -17,6 +18,18 @@ const {
 } = require('./db');
 
 const { sendTwoFaEmail, sendPasswordResetEmail } = require('./mail');
+
+/* ============================================================
+   RATE LIMITING (solo sugli endpoint sensibili tipo login/2FA —
+   NON su /me e /logout, che vengono chiamati a ogni caricamento pagina)
+   ============================================================ */
+const strictLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Troppi tentativi, riprova tra 15 minuti.' }
+});
 
 /* ============================================================
    MIDDLEWARE AUTORIZZAZIONE (usati da altri router /api/*)
@@ -47,7 +60,7 @@ router.get('/me', (req, res) => {
 });
 
 // Login: invia codice 2FA via mail
-router.post('/login', async (req, res) => {
+router.post('/login', strictLimiter, async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
     return res.status(400).json({ error: 'Email e password obbligatori' });
@@ -71,7 +84,7 @@ router.post('/login', async (req, res) => {
 });
 
 // Registrazione: crea utente + invia codice 2FA
-router.post('/register', async (req, res) => {
+router.post('/register', strictLimiter, async (req, res) => {
   const { email, password, password2, firstName, lastName, birthDate, birthPlace } = req.body;
 
   if (!email || !password || !password2) {
@@ -102,7 +115,7 @@ router.post('/register', async (req, res) => {
 });
 
 // Verifica codice 2FA
-router.post('/2fa', (req, res) => {
+router.post('/2fa', strictLimiter, (req, res) => {
   const { code } = req.body;
   const userId = req.session.pendingTwoFaUserId;
   if (!userId || !code) {
@@ -123,7 +136,7 @@ router.post('/2fa', (req, res) => {
 });
 
 // Rinvia codice 2FA
-router.post('/2fa/resend', async (req, res) => {
+router.post('/2fa/resend', strictLimiter, async (req, res) => {
   const userId = req.session.pendingTwoFaUserId;
   if (!userId) return res.status(400).json({ error: 'Nessuna verifica in corso' });
   const user = findUserById(userId);
@@ -138,7 +151,7 @@ router.post('/2fa/resend', async (req, res) => {
    ============================================================ */
 
 // POST /api/auth/forgot-password — invia email con link di reset
-router.post('/forgot-password', async (req, res) => {
+router.post('/forgot-password', strictLimiter, async (req, res) => {
   const { email } = req.body;
   if (!email) {
     return res.status(400).json({ error: 'Inserisci la tua email' });
@@ -158,7 +171,7 @@ router.post('/forgot-password', async (req, res) => {
 });
 
 // POST /api/auth/reset-password — imposta nuova password con token
-router.post('/reset-password', (req, res) => {
+router.post('/reset-password', strictLimiter, (req, res) => {
   const { token, password } = req.body;
   if (!token || !password) {
     return res.status(400).json({ error: 'Token e nuova password obbligatori' });
