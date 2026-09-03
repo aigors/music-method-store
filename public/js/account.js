@@ -73,7 +73,7 @@ async function loadPurchases() {
 async function doLogout() {
   try {
     await apiFetch('/auth/logout', { method: 'POST' });
-    window.location.href = '/login';
+    window.location.href = '/catalogo';
   } catch (err) {
     showAlert('account-error', err.message);
   }

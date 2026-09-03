@@ -107,10 +107,10 @@ async function doLogout() {
     await apiFetch('/auth/logout', { method: 'POST' });
     currentUser = null;
     updateAuthNav();
-    // Se siamo in pagine protette, redirect
+    // Se siamo in pagine protette, redirect alla home
     if (window.location.pathname.startsWith('/account') ||
         window.location.pathname.startsWith('/viewer')) {
-      window.location.href = '/login';
+      window.location.href = '/catalogo';
     }
   } catch (e) {
     console.error('Logout error:', e);
