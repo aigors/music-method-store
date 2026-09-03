@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Il mio account — Music Method Store</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="/catalogo" class="logo" aria-label="Music Method Store - Home">
+        <span class="logo-icon">🎵</span>
+        <span class="logo-text">Music Method Store</span>
+      </a>
+      <nav class="main-nav" aria-label="Navigazione principale">
+        <a href="/catalogo" class="nav-link">Catalogo</a>
+        <div id="auth-nav" class="auth-nav"></div>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container account-main">
+    <div class="page-header">
+      <h1>Il mio account</h1>
+    </div>
+
+    <div id="account-loading" class="loading-state" aria-live="polite">
+      <div class="spinner"></div>
+      <p>Caricamento…</p>
+    </div>
+
+    <div id="account-content" hidden>
+      <section class="account-section">
+        <h2>Profilo</h2>
+        <div class="profile-card">
+          <div class="profile-avatar" id="profile-avatar"></div>
+          <div class="profile-info">
+            <p><strong>Email:</strong> <span id="profile-email"></span></p>
+            <p><strong>Membro dal:</strong> <span id="profile-since"></span></p>
+          </div>
+        </div>
+      </section>
+
+      <section class="account-section">
+        <h2>I miei metodi</h2>
+        <div id="purchases-list" class="purchases-list"></div>
+        <div id="purchases-empty" class="empty-state" hidden>
+          <p>Non hai ancora acquistato nessun metodo.</p>
+          <a href="/catalogo" class="btn btn-primary">Sfoglia il catalogo</a>
+        </div>
+      </section>
+
+      <section class="account-section account-actions">
+        <button type="button" class="btn btn-danger" id="logout-btn">Esci</button>
+      </section>
+    </div>
+
+    <div id="account-error" class="error-state" hidden>
+      <p id="account-error-msg"></p>
+      <a href="/login" class="btn btn-primary">Accedi</a>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>&copy; 2026 Music Method Store</p>
+    </div>
+  </footer>
+
+  <script nonce="{{cspNonce}}" type="module" src="/js/main.js"></script>
+  <script nonce="{{cspNonce}}" type="module">
+    import { loadAccount } from '/js/account.js';
+    loadAccount();
+  </script>
+</body>
+</html>

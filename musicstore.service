@@ -1,0 +1,43 @@
+# Systemd service per PM2 + Music Store
+# Copia in /etc/systemd/system/musicstore.service
+# systemctl daemon-reload && systemctl enable --now musicstore
+
+[Unit]
+Description=Music Method Store (PM2)
+After=network.target nginx.service
+Requires=nginx.service
+
+[Service]
+Type=forking
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/musicstore
+Environment=PATH=/usr/bin:/usr/local/bin
+EnvironmentFile=-/var/www/musicstore/.env
+ExecStart=/usr/local/bin/pm2 start ecosystem.config.js --env production --no-daemon
+ExecReload=/usr/local/bin/pm2 reload ecosystem.config.js --env production
+ExecStop=/usr/local/bin/pm2 kill
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=60
+TimeoutStopSec=30
+KillMode=process
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/musicstore /var/log/musicstore /var/www/musicstore
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+[Install]
+WantedBy=multi-user.target

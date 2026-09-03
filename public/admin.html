@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pannello Admin — Music Method Store</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="/catalogo" class="logo" aria-label="Music Method Store - Home">
+        <span class="logo-icon">🎵</span>
+        <span class="logo-text">Music Method Store</span>
+      </a>
+      <nav class="main-nav" aria-label="Navigazione principale">
+        <a href="/catalogo" class="nav-link">Catalogo</a>
+        <a href="/admin" class="nav-link active">Admin</a>
+        <div id="auth-nav" class="auth-nav"></div>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container admin-main">
+    <div class="page-header">
+      <h1>Pannello Amministrazione</h1>
+      <p class="page-subtitle">Gestisci catalogo e utenti</p>
+    </div>
+
+    <!-- Stats Cards -->
+    <section class="admin-section stats-grid" id="stats-section" hidden>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-users-active">—</div>
+        <div class="stat-label">Utenti attivi</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-users-inactive">—</div>
+        <div class="stat-label">Utenti disattivati</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-books-active">—</div>
+        <div class="stat-label">Libri attivi</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-books-inactive">—</div>
+        <div class="stat-label">Libri inattivi</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-orders">—</div>
+        <div class="stat-label">Ordini completati</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-revenue">—</div>
+        <div class="stat-label">Ricavi (€)</div>
+      </div>
+    </section>
+
+    <!-- Utenti -->
+    <section class="admin-section" id="users-section">
+      <div class="section-header">
+        <h2>Utenti</h2>
+      </div>
+      <div id="users-loading" class="loading-state" hidden>
+        <div class="spinner"></div><p>Caricamento…</p>
+      </div>
+      <div id="users-table-container" hidden>
+        <div class="table-wrapper">
+          <table class="admin-table" id="users-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Email</th>
+                <th>Registrato</th>
+                <th>Stato</th>
+                <th>Admin</th>
+                <th>Azioni</th>
+              </tr>
+            </thead>
+            <tbody id="users-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="users-empty" class="empty-state" hidden>
+        <p>Nessun utente trovato.</p>
+      </div>
+    </section>
+
+    <!-- Libri -->
+    <section class="admin-section" id="books-section">
+      <div class="section-header">
+        <h2>Catalogo</h2>
+        <button type="button" class="btn btn-primary" id="btn-new-book">+ Nuovo metodo</button>
+      </div>
+      <div id="books-loading" class="loading-state" hidden>
+        <div class="spinner"></div><p>Caricamento…</p>
+      </div>
+      <div id="books-table-container" hidden>
+        <div class="table-wrapper">
+          <table class="admin-table" id="books-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Titolo</th>
+                <th>Autore</th>
+                <th>Prezzo</th>
+                <th>Pagine</th>
+                <th>Stato</th>
+                <th>PDF</th>
+                <th>Azioni</th>
+              </tr>
+            </thead>
+            <tbody id="books-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="books-empty" class="empty-state" hidden>
+        <p>Nessun metodo nel catalogo.</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal Nuovo/Modifica Libro -->
+  <div class="modal-overlay" id="book-modal" hidden>
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="book-modal-title">Nuovo metodo</h3>
+        <button type="button" class="modal-close" id="book-modal-close" aria-label="Chiudi">&times;</button>
+      </div>
+      <form id="book-form" class="modal-body" enctype="multipart/form-data">
+        <input type="hidden" name="id" id="book-id">
+        <div class="form-group">
+          <label for="book-slug">Slug *</label>
+          <input type="text" name="slug" id="book-slug" required pattern="[a-z0-9-]+" placeholder="es. metodo-chitarra-base">
+          <small class="form-hint">Solo minuscole, numeri e trattini. Univoco.</small>
+        </div>
+        <div class="form-group">
+          <label for="book-title">Titolo *</label>
+          <input type="text" name="title" id="book-title" required placeholder="Titolo del metodo">
+        </div>
+        <div class="form-group">
+          <label for="book-author">Autore *</label>
+          <input type="text" name="author" id="book-author" required placeholder="Nome autore">
+        </div>
+        <div class="form-group">
+          <label for="book-description">Descrizione</label>
+          <textarea name="description" id="book-description" rows="3" placeholder="Descrizione per il catalogo"></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="book-price">Prezzo (€) *</label>
+            <input type="number" name="priceCents" id="book-price" required step="0.01" min="0" placeholder="14.99">
+            <small class="form-hint">In euro, verrà convertito in centesimi.</small>
+          </div>
+          <div class="form-group">
+            <label for="book-pages">Pagine</label>
+            <input type="number" name="pages" id="book-pages" min="0" placeholder="52">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="book-cover">Immagine copertina (opzionale, nome file in data/pdfs/)</label>
+          <input type="text" name="coverFile" id="book-cover" placeholder="copertina-chitarra.jpg">
+        </div>
+        <div class="form-group" id="book-pdf-group">
+          <label for="book-pdf">File PDF *</label>
+          <input type="file" name="pdf" id="book-pdf" accept="application/pdf" required>
+          <small class="form-hint" id="pdf-hint">Max 50 MB. Solo PDF.</small>
+        </div>
+        <div class="form-group" id="book-active-group" hidden>
+          <label class="checkbox-label">
+            <input type="checkbox" name="isActive" id="book-is-active" checked>
+            <span>Attivo in catalogo</span>
+          </label>
+        </div>
+
+        <!-- Protezione avanzata (Fase 2-3) -->
+        <fieldset class="form-fieldset" id="book-protection-group" hidden>
+          <legend>Protezione avanzata</legend>
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" name="highSecurity" id="book-high-security">
+              <span>Alta sicurezza (rasterizzazione server-side — stampa/solo immagini)</span>
+            </label>
+            <small class="form-hint">Il PDF viene rasterizzato in immagini PNG server-side. Impedisce selezione testo e stampa vettoriale. Più CPU/banda.</small>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="book-watermark-opacity">Opacità watermark visibile (0-1)</label>
+              <input type="number" name="watermarkOpacity" id="book-watermark-opacity" step="0.05" min="0" max="1" value="0.25">
+              <small class="form-hint">Default 0.25. 0 = invisibile, 1 = opaco.</small>
+            </div>
+            <div class="form-group">
+              <label for="book-watermark-pages">Pagine watermark</label>
+              <input type="text" name="watermarkPages" id="book-watermark-pages" placeholder="es. all, 1-3, last-2, first-last">
+              <small class="form-hint">Default: all. Formati: "all", "1-3", "last-2", "first-last", "1,3,5".</small>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="book-watermark-text">Testo custom watermark (opzionale)</label>
+            <input type="text" name="watermarkText" id="book-watermark-text" placeholder="es. {email} — {timestamp} — Proprietà di Music Method Store">
+            <small class="form-hint">Placeholder: {email}, {timestamp}, {userId}. Default: "Music Method Store — {email} — {timestamp}".</small>
+          </div>
+        </fieldset>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="book-modal-cancel">Annulla</button>
+          <button type="submit" class="btn btn-primary" id="book-submit">Salva</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast notifications -->
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>&copy; 2026 Music Method Store — Admin Panel</p>
+    </div>
+  </footer>
+
+  <script nonce="{{cspNonce}}" type="module" src="/js/main.js"></script>
+  <script nonce="{{cspNonce}}" type="module">
+    import { loadAdmin } from '/js/admin.js';
+    loadAdmin();
+  </script>
+</body>
+</html>

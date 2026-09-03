@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verifica 2FA — Music Method Store</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="/catalogo" class="logo" aria-label="Music Method Store - Home">
+        <span class="logo-icon">🎵</span>
+        <span class="logo-text">Music Method Store</span>
+      </a>
+    </div>
+  </header>
+
+  <main class="container auth-main">
+    <div class="auth-card">
+      <h1>Verifica in due passaggi</h1>
+      <p class="auth-subtitle">
+        Abbiamo inviato un codice a 6 cifre a <strong id="2fa-email"></strong>.
+        <br>Il codice scade tra 15 minuti.
+      </p>
+
+      <div id="2fa-error" class="alert alert-error" hidden></div>
+
+      <form id="2fa-form" novalidate>
+        <div class="form-group code-input-group">
+          <label for="code">Codice di verifica</label>
+          <input type="text" id="code" name="code" required inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" placeholder="000000" aria-describedby="code-hint">
+          <span id="code-hint" class="form-hint">Inserisci le 6 cifre</span>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block" id="2fa-submit">Verifica</button>
+      </form>
+
+      <div class="auth-actions">
+        <button type="button" class="btn btn-link" id="resend-btn">Rinvia codice</button>
+        <a href="/login" class="btn btn-link">Annulla</a>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>&copy; 2026 Music Method Store</p>
+    </div>
+  </footer>
+
+  <script nonce="{{cspNonce}}" type="module" src="/js/main.js"></script>
+  <script nonce="{{cspNonce}}" type="module">
+    import { handle2FA, handleResend } from '/js/auth.js';
+    document.getElementById('2fa-form').addEventListener('submit', handle2FA);
+    document.getElementById('resend-btn').addEventListener('click', handleResend);
+  </script>
+</body>
+</html>

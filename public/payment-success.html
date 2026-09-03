@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pagamento completato — Music Method Store</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="/catalogo" class="logo" aria-label="Music Method Store - Home">
+        <span class="logo-icon">🎵</span>
+        <span class="logo-text">Music Method Store</span>
+      </a>
+      <nav class="main-nav" aria-label="Navigazione principale">
+        <a href="/catalogo" class="nav-link">Catalogo</a>
+        <div id="auth-nav" class="auth-nav"></div>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container auth-main">
+    <div class="auth-card" style="text-align: center;">
+      <div class="success-icon" style="font-size: 4rem; margin-bottom: 1rem;">✅</div>
+      <h1>Pagamento completato!</h1>
+      <p class="auth-subtitle">Il tuo acquisto è stato registrato con successo.</p>
+      <p id="success-details" style="margin: 1rem 0; color: var(--text-muted);"></p>
+      <a href="/account" class="btn btn-primary btn-block" style="margin-top: 1rem;">Vai ai miei metodi</a>
+      <a href="/catalogo" class="btn btn-outline btn-block" style="margin-top: 0.5rem;">Continua gli acquisti</a>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>&copy; 2026 Music Method Store</p>
+    </div>
+  </footer>
+
+  <script nonce="{{cspNonce}}" type="module" src="/js/main.js"></script>
+  <script nonce="{{cspNonce}}" type="module">
+    import { apiFetch, showAlert, hideAlert } from '/js/main.js';
+
+    async function init() {
+      // Il frontend PayPal SDK chiama /api/payment/capture-order al successo
+      // Qui mostriamo solo conferma, l'acquisto è già stato registrato via API
+      const urlParams = new URLSearchParams(window.location.search);
+      const token = urlParams.get('token');
+      const orderId = urlParams.get('orderId');
+
+      const detailsEl = document.getElementById('success-details');
+      if (orderId) {
+        detailsEl.textContent = `ID ordine PayPal: ${orderId}`;
+      } else if (token) {
+        detailsEl.textContent = `Token PayPal: ${token}`;
+      } else {
+        detailsEl.textContent = 'Il metodo è ora disponibile nel tuo account.';
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

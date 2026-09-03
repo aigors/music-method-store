@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registrati — Music Method Store</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="/catalogo" class="logo" aria-label="Music Method Store - Home">
+        <span class="logo-icon">🎵</span>
+        <span class="logo-text">Music Method Store</span>
+      </a>
+    </div>
+  </header>
+
+  <main class="container auth-main">
+    <div class="auth-card">
+      <h1>Registrati</h1>
+      <p class="auth-subtitle">Crea il tuo account per accedere ai metodi musicali.</p>
+
+      <div id="register-error" class="alert alert-error" hidden></div>
+
+      <form id="register-form" novalidate>
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" required autocomplete="email" placeholder="tua@email.it">
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" required autocomplete="new-password" placeholder="Minimo 8 caratteri" minlength="8">
+        </div>
+
+        <div class="form-group">
+          <label for="password2">Conferma password</label>
+          <input type="password" id="password2" name="password2" required autocomplete="new-password" placeholder="••••••••">
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">Registrati e invia 2FA</button>
+      </form>
+
+      <p class="auth-footer">
+        Hai già un account? <a href="/login">Accedi</a>
+      </p>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>&copy; 2026 Music Method Store</p>
+    </div>
+  </footer>
+
+  <script nonce="{{cspNonce}}" type="module" src="/js/main.js"></script>
+  <script nonce="{{cspNonce}}" type="module">
+    import { handleRegister } from '/js/auth.js';
+    document.getElementById('register-form').addEventListener('submit', handleRegister);
+  </script>
+</body>
+</html>

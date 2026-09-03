@@ -1,0 +1,22 @@
+node_modules/
+.env
+data/db.sqlite
+data/db.sqlite-wal
+data/db.sqlite-shm
+data/cache/
+data/covers/
+data/logs/
+data/raster/
+data/pdfs/*.pdf
+npm-debug.log*
+.DS_Store
+cookies*.txt
+
+# File di test/debug locali (non parte del progetto)
+check-ops.js
+test-pdfjs.mjs
+real-test.pdf
+catalog-screenshot.png
+cover-test.png
+styles.css
+*.pdf

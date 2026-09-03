@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes">
+  <meta name="referrer" content="no-referrer">
+  <title>Visualizzatore — Music Method Store</title>
+  <link rel="stylesheet" href="/styles.css">
+  <!-- Trusted Types policy (definita prima degli script) -->
+  <script nonce="{{cspNonce}}">
+    if (window.trustedTypes && trustedTypes.createPolicy) {
+      window.trustedTypes.createPolicy('viewer', {
+        createHTML: (s) => s,
+        createScript: (s) => s,
+        createScriptURL: (s) => s
+      });
+    }
+  </script>
+  <style nonce="{{cspNonce}}">
+    /* Viewer-specific styles (inline to avoid extra request) */
+    .viewer-header { position: sticky; top: 0; z-index: 100; background: var(--bg); border-bottom: 1px solid var(--border); padding: 0.75rem 0; }
+    .viewer-toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; justify-content: space-between; }
+    .viewer-title { font-weight: 600; font-size: 0.95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 40%; }
+    .toolbar-group { display: flex; gap: 0.25rem; align-items: center; }
+    .icon-btn { background: none; border: 1px solid var(--border); border-radius: 6px; padding: 0.4rem 0.6rem; cursor: pointer; color: var(--text); display: inline-flex; align-items: center; justify-content: center; transition: background 0.15s, border-color 0.15s; }
+    .icon-btn:hover { background: var(--bg-hover); border-color: var(--primary); }
+    .icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .page-input { width: 4rem; text-align: center; border: 1px solid var(--border); border-radius: 6px; padding: 0.35rem; background: var(--bg); color: var(--text); }
+    .zoom-select { border: 1px solid var(--border); border-radius: 6px; padding: 0.35rem 0.5rem; background: var(--bg); color: var(--text); }
+
+    #viewer-container { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg-secondary); }
+    .pdf-canvas-wrapper { flex: 1; display: flex; align-items: center; justify-content: center; overflow: auto; background: #222; }
+    .pdf-page-canvas { display: block; box-shadow: 0 0 0 1px rgba(0,0,0,0.1), 0 4px 12px rgba(0,0,0,0.15); background: white; max-width: 100%; height: auto; touch-action: none; }
+
+    .loading-overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(255,255,255,0.95); gap: 1rem; z-index: 50; }
+    .loading-overlay.hidden { display: none; }
+
+    .watermark-notice { position: fixed; bottom: 1rem; right: 1rem; background: var(--primary); color: white; padding: 0.5rem 1rem; border-radius: 6px; font-size: 0.75rem; opacity: 0.9; z-index: 200; pointer-events: none; }
+
+    @media (max-width: 640px) {
+      .viewer-title { max-width: 100%; order: -1; margin-bottom: 0.25rem; }
+      .toolbar-group { flex: 1; justify-content: center; }
+      .icon-btn { padding: 0.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header viewer-header" role="banner">
+    <div class="container viewer-toolbar">
+      <div class="viewer-title" id="viewer-title">Caricamento…</div>
+      <div class="toolbar-group">
+        <button class="icon-btn" id="btn-prev" aria-label="Pagina precedente" title="Pagina precedente (←)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <span class="page-indicator" aria-live="polite">
+          <input type="number" class="page-input" id="page-input" min="1" value="1" aria-label="Numero pagina">
+          <span id="page-total">/ 0</span>
+        </span>
+        <button class="icon-btn" id="btn-next" aria-label="Pagina successiva" title="Pagina successiva (→)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+      </div>
+      <div class="toolbar-group">
+        <select class="zoom-select" id="zoom-select" aria-label="Livello zoom">
+          <option value="auto">Adatta larghezza</option>
+          <option value="page">Adatta pagina</option>
+          <option value="0.5">50%</option>
+          <option value="0.75">75%</option>
+          <option value="1" selected>100%</option>
+          <option value="1.25">125%</option>
+          <option value="1.5">150%</option>
+          <option value="2">200%</option>
+        </select>
+        <button class="icon-btn" id="btn-fullscreen" aria-label="Schermo intero" title="Schermo intero (F)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+        </button>
+        <a href="/catalogo" class="icon-btn" aria-label="Torna al catalogo">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"></path></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main id="viewer-container" class="viewer-container" role="main">
+    <div class="pdf-canvas-wrapper" id="canvas-wrapper">
+      <div class="loading-overlay" id="loading-overlay">
+        <div class="spinner" style="width: 40px; height: 40px; border-width: 3px;"></div>
+        <p>Caricamento PDF…</p>
+      </div>
+      <!-- Il canvas viene inserito qui da PDF.js -->
+    </div>
+  </main>
+
+  <div class="watermark-notice" id="watermark-notice" aria-hidden="true">
+    🔒 PDF protetto — Watermark personale applicato
+  </div>
+
+  <footer class="site-footer" style="position: fixed; bottom: 0; width: 100%; z-index: 10;">
+    <div class="container">
+      <p>&copy; 2026 Music Method Store — Visualizzazione protetta</p>
+    </div>
+  </footer>
+
+  <!-- PDF.js library (locale, no CDN) -->
+  <script nonce="{{cspNonce}}" src="/lib/pdf.min.js"></script>
+  <script nonce="{{cspNonce}}" type="module" src="/js/main.js"></script>
+  <script nonce="{{cspNonce}}" type="module" src="/js/viewer.js"></script>
+</body>
+</html>
