@@ -33,17 +33,22 @@ function createApp() {
     next();
   });
 
+  // Origini PayPal (SDK, pulsanti in iframe, approval popup)
+  // Sandbox e live caricano sempre lo SDK da www.paypal.com.
+  const PAYPAL_ORIGINS = ['https://www.paypal.com', 'https://www.sandbox.paypal.com'];
+
   app.use(helmet({
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", (req, res) => `'nonce-${res.locals.cspNonce}'`], // nonce per script inline
+        scriptSrc: ["'self'", (req, res) => `'nonce-${res.locals.cspNonce}'`, ...PAYPAL_ORIGINS], // nonce per script inline + PayPal SDK
         styleSrc: ["'self'", "'unsafe-inline'"], // style inline per PDF.js canvas
-        imgSrc: ["'self'", 'data:', 'blob:'],
+        imgSrc: ["'self'", 'data:', 'blob:', ...PAYPAL_ORIGINS],
         fontSrc: ["'self'", 'data:'],
         workerSrc: ["'self'", 'blob:'],
-        connectSrc: ["'self'"],
-        frameAncestors: ["'none'"],
+        connectSrc: ["'self'", ...PAYPAL_ORIGINS],
+        frameSrc: ["'self'", ...PAYPAL_ORIGINS], // iframe pulsanti PayPal
+        frameAncestors: ["'none'"], // impedisce che TERZI facciano iframe del nostro sito
         baseUri: ["'self'"],
         formAction: ["'self'"],
         // Trusted Types
