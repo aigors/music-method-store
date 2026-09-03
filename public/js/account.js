@@ -18,9 +18,13 @@ export async function loadAccount() {
     }
 
     // Aggiorna UI profilo
+    const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    document.getElementById('profile-name').textContent = fullName;
     document.getElementById('profile-email').textContent = user.email;
+    document.getElementById('profile-birthdate').textContent = user.birthDate || '—';
+    document.getElementById('profile-birthplace').textContent = user.birthPlace || '—';
     const avatar = document.getElementById('profile-avatar');
-    avatar.textContent = user.email.charAt(0).toUpperCase();
+    avatar.textContent = (user.firstName || user.email).charAt(0).toUpperCase();
     document.getElementById('profile-since').textContent = new Date().toLocaleDateString('it-IT');
 
     // Carica acquisti

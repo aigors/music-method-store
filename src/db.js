@@ -34,8 +34,24 @@ function initDb() {
       passwordHash TEXT    NOT NULL,
       createdAt    TEXT    NOT NULL DEFAULT (datetime('now')),
       isActive     INTEGER NOT NULL DEFAULT 1,
-      isAdmin      INTEGER NOT NULL DEFAULT 0
+      isAdmin      INTEGER NOT NULL DEFAULT 0,
+      -- Dati anagrafici (obbligatori per utenti registrati, vuoti per demo/admin)
+      firstName    TEXT,
+      lastName     TEXT,
+      birthDate    TEXT,
+      birthPlace   TEXT
     );
+
+    -- Token recupero password (30 min, one-time)
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id        INTEGER PRIMARY KEY AUTOINCREMENT,
+      userId    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token     TEXT    NOT NULL UNIQUE,
+      expiresAt TEXT    NOT NULL,            -- ISO8601
+      used      INTEGER NOT NULL DEFAULT 0,
+      createdAt TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_reset_token_user ON password_reset_tokens(userId);
 
     -- Codici 2FA temporanei (15 min)
     CREATE TABLE IF NOT EXISTS two_fa_codes (
@@ -110,6 +126,21 @@ function initDb() {
     // Colonna già esistente, ignora
   }
 
+  // Migrazione: aggiungi dati anagrafici users (campi profilo)
+  const profileMigrations = [
+    'ALTER TABLE users ADD COLUMN firstName TEXT',
+    'ALTER TABLE users ADD COLUMN lastName TEXT',
+    'ALTER TABLE users ADD COLUMN birthDate TEXT',
+    'ALTER TABLE users ADD COLUMN birthPlace TEXT'
+  ];
+  for (const sql of profileMigrations) {
+    try {
+      db.prepare(sql).run();
+    } catch (e) {
+      // Colonna già esistente, ignora
+    }
+  }
+
   // Migrazione: aggiungi campi protezione avanzata books (Fase 1-3)
   const bookMigrations = [
     'ALTER TABLE books ADD COLUMN highSecurity INTEGER NOT NULL DEFAULT 0',
@@ -166,12 +197,20 @@ function checkPassword(plain, hash) {
   return bcrypt.compareSync(plain, hash);
 }
 
-function createUser(email, password) {
+function createUser(email, password, profile = {}) {
   const stmt = db.prepare(
-    'INSERT INTO users (email, passwordHash) VALUES (?, ?)'
+    `INSERT INTO users (email, passwordHash, firstName, lastName, birthDate, birthPlace)
+     VALUES (?, ?, ?, ?, ?, ?)`
   );
-  const info = stmt.run(email.toLowerCase().trim(), hashPassword(password));
-  return { id: info.lastInsertRowid, email };
+  const info = stmt.run(
+    email.toLowerCase().trim(),
+    hashPassword(password),
+    profile.firstName || null,
+    profile.lastName || null,
+    profile.birthDate || null,
+    profile.birthPlace || null
+  );
+  return { id: info.lastInsertRowid, email, ...profile };
 }
 
 function findUserByEmail(email) {
@@ -180,7 +219,7 @@ function findUserByEmail(email) {
 }
 
 function findUserById(id) {
-  return db.prepare('SELECT id, email, createdAt, isActive, isAdmin FROM users WHERE id = ?')
+  return db.prepare('SELECT id, email, createdAt, isActive, isAdmin, firstName, lastName, birthDate, birthPlace FROM users WHERE id = ?')
     .get(id);
 }
 
@@ -191,7 +230,7 @@ function findUserById(id) {
 function listUsers({ includeInactive = false } = {}) {
   const where = includeInactive ? '' : 'WHERE isActive = 1';
   return db.prepare(
-    `SELECT id, email, createdAt, isActive, isAdmin
+    `SELECT id, email, createdAt, isActive, isAdmin, firstName, lastName, birthDate, birthPlace
      FROM users ${where} ORDER BY createdAt DESC`
   ).all();
 }
@@ -440,6 +479,58 @@ function getViewToken(token) {
 }
 
 /* ============================================================
+   HELPER RESET PASSWORD (token via email)
+   ============================================================ */
+
+const { randomBytes } = require('crypto');
+
+/**
+ * Crea un token di reset password (one-time, scadenza configurabile).
+ * @param {number} userId
+ * @param {number} ttlMinutes - scadenza in minuti (default 30)
+ * @returns {Object} { token, expiresAt }
+ */
+function createPasswordResetToken(userId, ttlMinutes = 30) {
+  const token = randomBytes(32).toString('hex'); // 64 hex chars
+  const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000).toISOString();
+
+  db.prepare(
+    'INSERT INTO password_reset_tokens (userId, token, expiresAt) VALUES (?, ?, ?)'
+  ).run(userId, token, expiresAt);
+
+  // Invalida i token precedenti non ancora usati per questo utente
+  db.prepare(
+    "UPDATE password_reset_tokens SET used = 1 WHERE userId = ? AND used = 0 AND token != ?"
+  ).run(userId, token);
+
+  return { token, expiresAt };
+}
+
+/**
+ * Recupera un token reset non scaduto e non usato.
+ */
+function getPasswordResetToken(token) {
+  return db.prepare(
+    "SELECT * FROM password_reset_tokens WHERE token = ? AND used = 0 AND expiresAt > datetime('now')"
+  ).get(token);
+}
+
+/**
+ * Marca un token reset come usato (one-time).
+ */
+function markPasswordResetTokenUsed(token) {
+  db.prepare('UPDATE password_reset_tokens SET used = 1 WHERE token = ?').run(token);
+}
+
+/**
+ * Aggiorna la password di un utente.
+ */
+function updateUserPassword(userId, newPassword) {
+  const stmt = db.prepare('UPDATE users SET passwordHash = ? WHERE id = ?');
+  return stmt.run(hashPassword(newPassword), userId).changes > 0;
+}
+
+/* ============================================================
    CLEANUP periodico (chiamato da script/cleanup.js)
    ============================================================ */
 
@@ -448,6 +539,8 @@ function cleanup() {
   db.prepare("DELETE FROM two_fa_codes WHERE expiresAt < datetime('now') OR used = 1").run();
   // View token scaduti
   db.prepare("DELETE FROM view_tokens WHERE expiresAt < datetime('now')").run();
+  // Token reset password scaduti o usati
+  db.prepare("DELETE FROM password_reset_tokens WHERE expiresAt < datetime('now') OR used = 1").run();
   // File fisici cache (gestiti da cleanup.js)
 }
 
@@ -467,6 +560,11 @@ module.exports = {
   // 2fa
   createTwoFaCode,
   verifyTwoFaCode,
+  // reset password
+  createPasswordResetToken,
+  getPasswordResetToken,
+  markPasswordResetTokenUsed,
+  updateUserPassword,
   // books
   listBooks,
   getBookBySlug,

@@ -215,6 +215,14 @@ function createApp() {
     serveHtmlPage(req, res, '2fa.html');
   });
 
+  // Recupero password
+  app.get('/forgot-password', (req, res) => {
+    serveHtmlPage(req, res, 'forgot-password.html');
+  });
+  app.get('/reset-password', (req, res) => {
+    serveHtmlPage(req, res, 'reset-password.html');
+  });
+
   // Viewer PDF (richiede login + 2FA + token — gestito lato client)
   // Serve viewer.html con CSP nonce
   function serveViewer(req, res) {

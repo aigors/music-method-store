@@ -9,10 +9,14 @@ const {
   findUserById,
   checkPassword,
   createTwoFaCode,
-  verifyTwoFaCode
+  verifyTwoFaCode,
+  createPasswordResetToken,
+  getPasswordResetToken,
+  markPasswordResetTokenUsed,
+  updateUserPassword
 } = require('./db');
 
-const { sendTwoFaEmail } = require('./mail');
+const { sendTwoFaEmail, sendPasswordResetEmail } = require('./mail');
 
 /* ============================================================
    MIDDLEWARE AUTORIZZAZIONE (usati da altri router /api/*)
@@ -49,19 +53,27 @@ router.post('/login', async (req, res) => {
     return res.status(400).json({ error: 'Email e password obbligatori' });
   }
   const user = findUserByEmail(email);
-  if (!user || !checkPassword(password, user.passwordHash)) {
-    return res.status(401).json({ error: 'Credenziali non valide' });
+  if (!user) {
+    return res.status(401).json({ error: 'Utente non registrato' });
+  }
+  if (!checkPassword(password, user.passwordHash)) {
+    return res.status(401).json({ error: 'Password errata' });
   }
   const code = createTwoFaCode(user.id);
   await sendTwoFaEmail(user.email, code);
   req.session.pendingTwoFaUserId = user.id;
-  req.session.user = { id: user.id, email: user.email, twoFaVerified: false, isAdmin: !!user.isAdmin };
+  req.session.user = {
+    id: user.id, email: user.email, twoFaVerified: false, isAdmin: !!user.isAdmin,
+    firstName: user.firstName, lastName: user.lastName,
+    birthDate: user.birthDate, birthPlace: user.birthPlace
+  };
   res.json({ ok: true, message: 'Codice 2FA inviato a ' + user.email });
 });
 
 // Registrazione: crea utente + invia codice 2FA
 router.post('/register', async (req, res) => {
-  const { email, password, password2 } = req.body;
+  const { email, password, password2, firstName, lastName, birthDate, birthPlace } = req.body;
+
   if (!email || !password || !password2) {
     return res.status(400).json({ error: 'Tutti i campi obbligatori' });
   }
@@ -71,14 +83,21 @@ router.post('/register', async (req, res) => {
   if (password.length < 8) {
     return res.status(400).json({ error: 'Password minima 8 caratteri' });
   }
+  // Dati anagrafici obbligatori per gli utenti registrati
+  if (!firstName || !lastName) {
+    return res.status(400).json({ error: 'Nome e cognome obbligatori' });
+  }
+  if (!birthDate || !birthPlace) {
+    return res.status(400).json({ error: 'Data e luogo di nascita obbligatori' });
+  }
   if (findUserByEmail(email)) {
     return res.status(409).json({ error: 'Email già registrata' });
   }
-  const user = createUser(email, password);
+  const user = createUser(email, password, { firstName, lastName, birthDate, birthPlace });
   const code = createTwoFaCode(user.id);
   await sendTwoFaEmail(user.email, code);
   req.session.pendingTwoFaUserId = user.id;
-  req.session.user = { id: user.id, email: user.email, twoFaVerified: false };
+  req.session.user = { id: user.id, email: user.email, twoFaVerified: false, ...user };
   res.json({ ok: true, message: 'Registrato. Codice 2FA inviato.' });
 });
 
@@ -112,6 +131,52 @@ router.post('/2fa/resend', async (req, res) => {
   const code = createTwoFaCode(userId);
   await sendTwoFaEmail(user.email, code);
   res.json({ ok: true });
+});
+
+/* ============================================================
+   RECUPERO PASSWORD (dimenticata)
+   ============================================================ */
+
+// POST /api/auth/forgot-password — invia email con link di reset
+router.post('/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ error: 'Inserisci la tua email' });
+  }
+
+  const user = findUserByEmail(email);
+
+  // Rispondi in modo generico per non rivelare se l'email esiste
+  if (user) {
+    const { token } = createPasswordResetToken(user.id);
+    const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
+    const resetUrl = `${baseUrl}/reset-password?token=${token}`;
+    await sendPasswordResetEmail(user.email, resetUrl);
+  }
+
+  res.json({ ok: true, message: 'Se l\'email è registrata, riceverai un link per reimpostare la password.' });
+});
+
+// POST /api/auth/reset-password — imposta nuova password con token
+router.post('/reset-password', (req, res) => {
+  const { token, password } = req.body;
+  if (!token || !password) {
+    return res.status(400).json({ error: 'Token e nuova password obbligatori' });
+  }
+  if (password.length < 8) {
+    return res.status(400).json({ error: 'Password minima 8 caratteri' });
+  }
+
+  const reset = getPasswordResetToken(token);
+  if (!reset) {
+    return res.status(400).json({ error: 'Link non valido o scaduto. Richiedi un nuovo recupero.' });
+  }
+
+  updateUserPassword(reset.userId, password);
+  markPasswordResetTokenUsed(token);
+
+  // Se l'utente è loggato con sessione 2FA non verificata, mantieni pulita la sessione
+  res.json({ ok: true, message: 'Password aggiornata. Ora puoi accedere con la nuova password.' });
 });
 
 // Logout

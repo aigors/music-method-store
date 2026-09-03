@@ -72,4 +72,51 @@ async function sendTwoFaEmail(to, code) {
   return { demo: false };
 }
 
-module.exports = { sendTwoFaEmail, getTransporter };
+/**
+ * Invia email di recupero password con link di reset.
+ * @param {string} to - Email destinatario
+ * @param {string} resetUrl - URL completo di reset (con token)
+ */
+async function sendPasswordResetEmail(to, resetUrl) {
+  const tx = getTransporter();
+
+  const subject = 'Recupero password — Music Method Store';
+  const text = `Hai richiesto il recupero della password.\n\nApri questo link per impostare una nuova password:\n${resetUrl}\n\nIl link scade tra 30 minuti e può essere usato una sola volta.\nSe non hai richiesto tu il recupero, ignora questa email.`;
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+      <h2 style="color:#2c3e50;">Recupero password</h2>
+      <p>Hai richiesto di reimpostare la tua password. Clicca il pulsante qui sotto:</p>
+      <p style="margin:24px 0;">
+        <a href="${resetUrl}" style="background:#1a73e8;color:#fff;padding:12px 24px;border-radius:4px;text-decoration:none;display:inline-block;">
+          Imposta una nuova password
+        </a>
+      </p>
+      <p style="color:#666;font-size:14px;">
+        In alternativa, apri questo link nel browser:<br>
+        <a href="${resetUrl}" style="color:#1a73e8;">${resetUrl}</a>
+      </p>
+      <p style="color:#666;font-size:13px;">Il link scade tra 30 minuti e può essere usato una sola volta. Se non hai richiesto tu il recupero, ignora questa email.</p>
+      <hr style="margin:20px 0;border:none;border-top:1px solid #eee;">
+      <p style="color:#999;font-size:12px;">Music Method Store</p>
+    </div>
+  `;
+
+  if (!tx) {
+    // MODALITA' DEMO — stampa nel log del server
+    console.log('\n┌──────────────────────────────────────────────┐');
+    console.log('│  RESET PASSWORD (DEMO — SMTP non configurato)│');
+    console.log('├──────────────────────────────────────────────┤');
+    console.log(`│  To:    ${to}`);
+    console.log(`│  Link:  ${resetUrl}`);
+    console.log('└──────────────────────────────────────────────┘\n');
+    return { demo: true, resetUrl };
+  }
+
+  // Invio reale
+  const from = process.env.SMTP_FROM || 'Music Method Store <no-reply@example.com>';
+  await tx.sendMail({ from, to, subject, text, html });
+  console.log(`✉️  Email recupero password inviata a ${to}`);
+  return { demo: false };
+}
+
+module.exports = { sendTwoFaEmail, sendPasswordResetEmail, getTransporter };

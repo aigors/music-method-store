@@ -24,9 +24,31 @@
       <div id="register-error" class="alert alert-error" hidden></div>
 
       <form id="register-form" novalidate>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="firstName">Nome</label>
+            <input type="text" id="firstName" name="firstName" required autocomplete="given-name" placeholder="Mario">
+          </div>
+          <div class="form-group">
+            <label for="lastName">Cognome</label>
+            <input type="text" id="lastName" name="lastName" required autocomplete="family-name" placeholder="Rossi">
+          </div>
+        </div>
+
         <div class="form-group">
           <label for="email">Email</label>
           <input type="email" id="email" name="email" required autocomplete="email" placeholder="tua@email.it">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="birthDate">Data di nascita</label>
+            <input type="date" id="birthDate" name="birthDate" required>
+          </div>
+          <div class="form-group">
+            <label for="birthPlace">Luogo di nascita</label>
+            <input type="text" id="birthPlace" name="birthPlace" required autocomplete="off" placeholder="es. Roma">
+          </div>
         </div>
 
         <div class="form-group">

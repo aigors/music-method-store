@@ -86,6 +86,7 @@ async function loadUsers() {
     tbody.innerHTML = users.map(u => `
       <tr>
         <td>${u.id}</td>
+        <td>${escapeHtml([u.firstName, u.lastName].filter(Boolean).join(' ') || '—')}</td>
         <td>${escapeHtml(u.email)}</td>
         <td>${formatDate(u.createdAt)}</td>
         <td>
