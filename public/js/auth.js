@@ -166,13 +166,14 @@ export async function handle2FA(e) {
   e.preventDefault();
   const form = e.target;
   const submitBtn = document.getElementById('2fa-submit');
+  const codeInput = document.getElementById('code');
   const originalText = submitBtn.textContent;
 
   hideAlert('2fa-error');
   submitBtn.disabled = true;
   submitBtn.textContent = 'Verifica…';
 
-  const code = form.code.value.trim();
+  const code = codeInput.value.trim();
 
   try {
     await apiFetch('/auth/2fa', {
@@ -183,9 +184,12 @@ export async function handle2FA(e) {
     const redirect = new URLSearchParams(window.location.search).get('redirect') || '/catalogo';
     window.location.href = redirect;
   } catch (err) {
-    showAlert('2fa-error', err.message);
+    showAlert('2fa-error', err.message || 'Errore sconosciuto. Riprova.');
     submitBtn.disabled = false;
     submitBtn.textContent = originalText;
+    // Pulisci il campo e metti il focus per il prossimo tentativo
+    codeInput.value = '';
+    codeInput.focus();
   }
 }
 

@@ -20,22 +20,28 @@ export async function apiFetch(path, options = {}) {
     credentials: 'include' // importante per session cookie
   });
 
+  // Legge il corpo una sola volta (riusabile per 401/403 e altri errori)
+  let data = null;
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+
   // Se 401/403 → redirect a login
   if (response.status === 401 || response.status === 403) {
-    const data = await response.json().catch(() => ({}));
-    if (data.redirect) {
+    if (data && data.redirect) {
       window.location.href = data.redirect;
       return null;
     }
   }
 
   if (!response.ok) {
-    const err = await response.json().catch(() => ({ error: 'Errore sconosciuto' }));
-    throw new Error(err.error || `HTTP ${response.status}`);
+    throw new Error((data && data.error) || `HTTP ${response.status}`);
   }
 
-  if (response.status === 204) return null;
-  return response.json();
+  if (response.status === 204 || data === null) return null;
+  return data;
 }
 
 // ============================================================
