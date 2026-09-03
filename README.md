@@ -104,6 +104,26 @@ npm start
 4. In **Sandbox → Accounts** crea un account **Buyer** (personale) per i test
 5. Usa le credenziali buyer per pagare in sandbox
 
+### 🧪 Troubleshooting PayPal
+
+| Sintomo | Causa probabile | Soluzione |
+|---------|-----------------|-----------|
+| "Impossibile caricare PayPal. Riprova più tardi." | **CSP che blocca lo SDK PayPal** | La CSP deve includere i domini PayPal in `script-src`, `connect-src`, `frame-src`, `img-src`. Già risolto in `src/app.js` (`PAYPAL_ORIGINS`). Verifica con DevTools → Console. |
+| `Invalid username or token` sul checkout | Client ID/Secret errati o mancanti | Controlla `PAYPAL_CLIENT_ID` / `PAYPAL_CLIENT_SECRET` nel `.env` e riavvia il server. |
+| Pagamento riuscito ma nessun acquisto registrato | `custom_id` non letto o `return_url` errato | Verifica `BASE_URL` nel `.env` (deve essere l'URL pubblico, es. `https://metodi.tuodominio.com`). |
+| Errori PayPal solo in produzione | Cookie `secure` + HTTPS | In `NODE_ENV=production` serve HTTPS (il cookie di sessione è `secure`). Usa Nginx + Certbot. |
+
+**Nota CSP**: il backend applica una Content-Security-Policy rigorosa via Helmet. Se in futuro aggiungi altri servizi esterni (CDN, font, analytics), ricordati di estendere le direttive CSP in `src/app.js` (`scriptSrc`, `connectSrc`, `frameSrc`, `imgSrc`), altrimenti il browser li bloccherà silenziosamente.
+
+## 📄 Conteggio automatico pagine
+
+Il campo **Pagine** dei metodi viene compilato **automaticamente** leggendo il PDF caricato (via `pdfjs-dist`, senza renderizzarlo):
+- Alla **creazione** di un libro con upload PDF
+- Alla **sostituzione** del PDF (`POST /api/admin/books/:id/upload`)
+- All'**associazione** di un PDF esistente (`POST /api/admin/books/:id/associate-pdf`)
+
+Se il conteggio fallisce (PDF corrotto o non valido), usa il valore manuale come fallback. Nel form admin puoi comunque inserire a mano il numero di pagine.
+
 ## 🏗️ Integrazione con Google Sites
 
 Poiché Google Sites non supporta codice server-side, il servizio gira **separatamente** (VPS, Vercel, Heroku, Fly.io, Railway, ecc.) e viene linkato dal sito Google Sites.
