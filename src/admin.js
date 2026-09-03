@@ -5,6 +5,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.mjs');
 
 const {
   listUsers,
@@ -61,6 +62,24 @@ const upload = multer({
   fileFilter,
   limits: { fileSize: 50 * 1024 * 1024 } // 50 MB
 });
+
+/* ============================================================
+   HELPER: conta pagine PDF leggendo direttamente il file
+   ============================================================ */
+
+/**
+ * Legge il numero di pagine di un PDF usando pdfjs-dist (senza renderizzare).
+ * @param {string} pdfPath - percorso file PDF
+ * @returns {Promise<number>} numero di pagine
+ */
+async function countPdfPages(pdfPath) {
+  const data = new Uint8Array(fs.readFileSync(pdfPath));
+  const loadingTask = pdfjsLib.getDocument({ data, isEvalSupported: false });
+  const pdfDoc = await loadingTask.promise;
+  const numPages = pdfDoc.numPages;
+  try { await pdfDoc.destroy(); } catch (e) { /* ignora */ }
+  return numPages;
+}
 
 /* ============================================================
    ROUTER ADMIN (montato con requireAuth + requireAdmin)
@@ -174,7 +193,7 @@ router.get('/books', (req, res) => {
 });
 
 // Crea libro (con upload PDF opzionale)
-router.post('/books', upload.single('pdf'), (req, res) => {
+router.post('/books', upload.single('pdf'), async (req, res) => {
   const { slug, title, author, description, priceCents, pages } = req.body;
 
   if (!slug || !title || !author || !priceCents) {
@@ -194,6 +213,17 @@ router.post('/books', upload.single('pdf'), (req, res) => {
   }
 
   try {
+    // Conteggio automatico pagine dal PDF caricato (fallback al valore manuale)
+    let autoPages = null;
+    if (req.file) {
+      try {
+        autoPages = await countPdfPages(path.join(PDF_DIR, req.file.filename));
+      } catch (e) {
+        console.warn('[admin] Conteggio pagine fallito:', e.message);
+      }
+    }
+    const finalPages = autoPages ?? (parseInt(pages, 10) || 0);
+
     const book = createBook({
       slug,
       title,
@@ -202,7 +232,7 @@ router.post('/books', upload.single('pdf'), (req, res) => {
       priceCents: parseInt(priceCents, 10),
       pdfFile,
       coverFile: req.body.coverFile || null,
-      pages: parseInt(pages, 10) || 0,
+      pages: finalPages,
       highSecurity: req.body.highSecurity ? 1 : 0,
       watermarkOpacity: parseFloat(req.body.watermarkOpacity) || 0.25,
       watermarkPages: req.body.watermarkPages || null,
@@ -322,7 +352,7 @@ router.get('/books/:id/cover-status', (req, res) => {
 });
 
 // Upload/sostituzione PDF
-router.post('/books/:id/upload', upload.single('pdf'), (req, res) => {
+router.post('/books/:id/upload', upload.single('pdf'), async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const book = getBookById(id);
   if (!book) return res.status(404).json({ error: 'Libro non trovato' });
@@ -334,12 +364,21 @@ router.post('/books/:id/upload', upload.single('pdf'), (req, res) => {
     if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
   }
 
-  updateBook(id, { pdfFile: req.file.filename });
-  res.json({ ok: true, pdfFile: req.file.filename, message: 'PDF aggiornato' });
+  // Conteggio automatico pagine dal nuovo PDF
+  const data = { pdfFile: req.file.filename };
+  try {
+    const autoPages = await countPdfPages(path.join(PDF_DIR, req.file.filename));
+    if (autoPages) data.pages = autoPages;
+  } catch (e) {
+    console.warn('[admin] Conteggio pagine fallito:', e.message);
+  }
+
+  updateBook(id, data);
+  res.json({ ok: true, pdfFile: req.file.filename, pages: data.pages ?? book.pages, message: 'PDF aggiornato' });
 });
 
 // Associa PDF esistente (scegli tra file caricati)
-router.post('/books/:id/associate-pdf', (req, res) => {
+router.post('/books/:id/associate-pdf', async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const book = getBookById(id);
   if (!book) return res.status(404).json({ error: 'Libro non trovato' });
@@ -359,8 +398,17 @@ router.post('/books/:id/associate-pdf', (req, res) => {
     if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
   }
 
-  updateBook(id, { pdfFile });
-  res.json({ ok: true, pdfFile, message: 'PDF associato al metodo' });
+  // Conteggio automatico pagine dal PDF associato
+  const data = { pdfFile };
+  try {
+    const autoPages = await countPdfPages(filePath);
+    if (autoPages) data.pages = autoPages;
+  } catch (e) {
+    console.warn('[admin] Conteggio pagine fallito:', e.message);
+  }
+
+  updateBook(id, data);
+  res.json({ ok: true, pdfFile, pages: data.pages ?? book.pages, message: 'PDF associato al metodo' });
 });
 
 // Lista file PDF disponibili in uploads
