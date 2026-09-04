@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>I miei metodi – Music Method Store</title>
-  <link rel="stylesheet" href="/css/style.css?v={{buildVersion}}">
+  <link rel="stylesheet" href="/styles.css?v={{buildVersion}}">
   <script nonce="{{cspNonce}}">window.CSP_NONCE="{{cspNonce}}";window.BUILD_VERSION="{{buildVersion}}";</script>
   <link rel="icon" href="/favicon.ico" type="image/x-icon">
 </head>
@@ -31,22 +31,22 @@
     <p id="purchases-subtitle" style="color:var(--text-muted);margin:0.5rem 0 2rem 0;">Metodi acquistati, accessibili anche se rimossi dal catalogo.</p>
 
     <!-- Loading -->
-    <div id="purchases-loading" class="loading" style="text-align:center;padding:3rem 0;">
-      <div class="spinner" style="width:40px;height:40px;border:4px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto;"></div>
-      <p style="margin-top:1rem;color:var(--text-muted);">Caricamento in corso…</p>
+    <div id="purchases-loading" class="loading-state" aria-live="polite">
+      <div class="spinner"></div>
+      <p>Caricamento acquisti...</p>
     </div>
 
     <!-- Errore -->
-    <div id="purchases-error" class="alert alert-error" hidden></div>
+    <div id="purchases-error" hidden></div>
 
     <!-- Empty -->
-    <div id="purchases-empty" hidden style="text-align:center;padding:3rem 0;">
-      <p style="font-size:1.1rem;margin-bottom:1rem;">🎵 Non hai ancora acquistato nessun metodo.</p>
+    <div id="purchases-empty" class="empty-state" hidden>
+      <p>🎵 Non hai ancora acquistato nessun metodo.</p>
       <a href="/catalogo" class="btn btn-primary">Vai al catalogo</a>
     </div>
 
     <!-- Grid acquisti -->
-    <div id="purchases-grid" class="catalog-grid" style="display:none;"></div>
+    <div id="purchases-grid" class="catalog-grid" hidden></div>
   </main>
 
   <!-- Footer -->
@@ -62,12 +62,7 @@
   </footer>
 
   <style>
-    @keyframes spin { to { transform: rotate(360deg); } }
     .page-title-row { display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap; }
-    .book-cover-fallback { width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:var(--bg-secondary, #e5e7eb); color:var(--text-muted, #6b7280); font-size:2.5rem; font-weight:700; }
-    .badge { display:inline-block; padding:0.2rem 0.5rem; border-radius:999px; font-size:0.75rem; font-weight:600; line-height:1; }
-    .badge-owned { background:#d1fae5; color:#065f46; }
-    .badge-inactive { background:#fef3c7; color:#92400e; }
     .book-meta-info { font-size:0.85rem; color:var(--text-muted, #6b7280); margin-top:0.25rem; }
   </style>
   <script type="module" src="/js/purchases.js?v={{buildVersion}}"></script>
