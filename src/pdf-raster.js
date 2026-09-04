@@ -8,7 +8,7 @@ const path = require('path');
 // pdfjs-dist per rasterizzazione server-side
 const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.mjs');
 
-const { getBookById, hasPurchased, consumeViewToken, getIpPrefix, cleanup } = require('./db');
+const { getBookById, hasPurchased, consumeViewToken, getIpPrefix, cleanup, getTokenSource } = require('./db');
 const { logRasterPage, ACTIONS } = require('./audit');
 
 const PDF_DIR = process.env.PDF_DIR || path.resolve(__dirname, '..', 'data', 'pdfs');
@@ -28,13 +28,52 @@ if (!fs.existsSync(RASTER_CACHE_DIR)) fs.mkdirSync(RASTER_CACHE_DIR, { recursive
  * @returns {Promise<Buffer>} - buffer PNG
  */
 async function rasterizePage(pdfPath, pageNum, scale = 2) {
-  // pdfjs-dist in Node richiede un'alternativa per canvas
-  // Usiamo la versione legacy che funziona con node-canvas o canvas mock
+  // pdfjs-dist in Node richiede un'implementazione canvas.
+  // Usiamo @napi-rs/canvas (compatibile con pdfjs-dist legacy build, come in catalog.js)
+  // con una CanvasFactory personalizzata.
+
+  let napiCanvas;
+  try {
+    napiCanvas = require('@napi-rs/canvas');
+  } catch (e) {
+    throw new Error('@napi-rs/canvas non installato - necessario per rasterizzare');
+  }
+
+  // CanvasFactory personalizzata per @napi-rs/canvas (necessaria per soft mask/immagini)
+  class NapiCanvasFactory {
+    constructor({ enableHWA = false } = {}) {
+      this.enableHWA = enableHWA;
+    }
+    create(width, height) {
+      if (width <= 0 || height <= 0) throw new Error('Invalid canvas size');
+      const canvas = napiCanvas.createCanvas(width, height);
+      const context = canvas.getContext('2d', { willReadFrequently: !this.enableHWA });
+      return { canvas, context };
+    }
+    reset(canvasAndContext, width, height) {
+      if (!canvasAndContext.canvas) throw new Error('Canvas is not specified');
+      if (width <= 0 || height <= 0) throw new Error('Invalid canvas size');
+      canvasAndContext.canvas.width = width;
+      canvasAndContext.canvas.height = height;
+    }
+    destroy(canvasAndContext) {
+      if (!canvasAndContext.canvas) throw new Error('Canvas is not specified');
+      canvasAndContext.canvas.width = 0;
+      canvasAndContext.canvas.height = 0;
+      canvasAndContext.canvas = null;
+      canvasAndContext.context = null;
+    }
+  }
 
   const data = new Uint8Array(fs.readFileSync(pdfPath));
 
-  // Carica documento
-  const loadingTask = pdfjsLib.getDocument({ data, disableFontFace: true, isEvalSupported: false });
+  // Carica documento con CanvasFactory
+  const loadingTask = pdfjsLib.getDocument({
+    data,
+    disableFontFace: true,
+    isEvalSupported: false,
+    canvasFactory: new NapiCanvasFactory()
+  });
   const pdfDoc = await loadingTask.promise;
 
   if (pageNum < 1 || pageNum > pdfDoc.numPages) {
@@ -46,21 +85,13 @@ async function rasterizePage(pdfPath, pageNum, scale = 2) {
   // Calcola viewport con scala
   const viewport = page.getViewport({ scale });
 
-  // Per rasterizzazione server-side in Node, usiamo un canvas virtuale
-  // pdfjs-dist legacy build in Node richiede un'implementazione canvas
-  // Usiamo node-canvas (installato) come primario, fallback a OffscreenCanvas nativo
-
-  let canvas;
-  try {
-    // node-canvas è installato come dipendenza - usa questo per compatibilità pdfjs-dist
-    const Canvas = require('canvas');
-    canvas = new Canvas(viewport.width, viewport.height);
-  } catch {
-    // Fallback: OffscreenCanvas nativo (Node 18+)
-    canvas = new OffscreenCanvas(viewport.width, viewport.height);
-  }
-
+  // Crea canvas usando @napi-rs/canvas
+  const canvas = napiCanvas.createCanvas(viewport.width, viewport.height);
   const context = canvas.getContext('2d');
+
+  // Riempie lo sfondo di bianco (come fa il browser)
+  context.fillStyle = 'white';
+  context.fillRect(0, 0, viewport.width, viewport.height);
 
   // Renderizza
   const renderContext = {
@@ -73,14 +104,7 @@ async function rasterizePage(pdfPath, pageNum, scale = 2) {
   await renderTask.promise;
 
   // Converti a PNG buffer
-  if (canvas.convertToBlob) {
-    // OffscreenCanvas
-    const blob = await canvas.convertToBlob({ type: 'image/png' });
-    return Buffer.from(await blob.arrayBuffer());
-  } else {
-    // node-canvas
-    return canvas.toBuffer('image/png');
-  }
+  return canvas.toBuffer('image/png');
 }
 
 /**
@@ -119,6 +143,39 @@ async function getRasterPage(bookId, pageNum, token, scale = 2) {
 }
 
 /* ============================================================
+   THUMBNAIL pagine (bassa risoluzione, cache condivisa non per-token)
+   ============================================================ */
+
+const THUMB_SCALE = 0.2;
+
+/**
+ * Genera una thumbnail a bassa risoluzione di una pagina, con cache su disco
+ * condivisa (non per-token): data/raster/<bookId>/thumbs/page-<N>.png (TTL 24h).
+ */
+async function getThumbnail(bookId, pageNum, scale = THUMB_SCALE) {
+  const book = getBookById(bookId);
+  if (!book) throw new Error('Libro non trovato');
+
+  const sourcePath = path.join(PDF_DIR, book.pdfFile);
+  if (!fs.existsSync(sourcePath)) throw new Error('File PDF sorgente mancante');
+
+  const thumbDir = path.join(RASTER_CACHE_DIR, String(bookId), 'thumbs');
+  if (!fs.existsSync(thumbDir)) fs.mkdirSync(thumbDir, { recursive: true });
+
+  const cacheFile = path.join(thumbDir, `page-${pageNum}.png`);
+  if (fs.existsSync(cacheFile)) {
+    const stat = fs.statSync(cacheFile);
+    if (Date.now() - stat.mtimeMs < 24 * 60 * 60 * 1000) {
+      return fs.readFileSync(cacheFile);
+    }
+  }
+
+  const pngBuffer = await rasterizePage(sourcePath, pageNum, scale);
+  fs.writeFileSync(cacheFile, pngBuffer);
+  return pngBuffer;
+}
+
+/* ============================================================
    ENDPOINT /api/pdf/raster/:bookId/:pageNum
    ============================================================ */
 
@@ -137,8 +194,9 @@ router.get('/raster/:bookId/:pageNum', async (req, res) => {
 
   const userEmail = req.session.user.email;
 
-  // Verifica acquisto
-  if (!hasPurchased(userId, bookId)) {
+  // Verifica acquisto (skip per token admin_preview)
+  const tokenSource = getTokenSource(token);
+  if (tokenSource !== 'admin_preview' && !hasPurchased(userId, bookId)) {
     return res.status(403).json({ error: 'Non hai acquistato questo metodo' });
   }
 
@@ -217,6 +275,53 @@ router.get('/raster/:bookId/:pageNum', async (req, res) => {
   }
 });
 
+// GET /api/pdf/thumb/:bookId/:pageNum — thumbnail bassa risoluzione
+// Non consuma view token (anteprima): accesso = acquisto oppure token admin_preview.
+router.get('/thumb/:bookId/:pageNum', async (req, res) => {
+  const startTime = Date.now();
+  const bookId = parseInt(req.params.bookId, 10);
+  const pageNum = parseInt(req.params.pageNum, 10);
+  const token = req.query.token;
+
+  const userId = req.session?.user?.id;
+  if (!userId) {
+    return res.status(401).json({ error: 'Non autenticato' });
+  }
+
+  const book = getBookById(bookId);
+  if (!book) {
+    return res.status(404).json({ error: 'Metodo non trovato' });
+  }
+
+  const tokenSource = getTokenSource(token);
+  if (tokenSource !== 'admin_preview' && !hasPurchased(userId, bookId)) {
+    return res.status(403).json({ error: 'Non hai acquistato questo metodo' });
+  }
+
+  if (pageNum < 1 || pageNum > (book.pages || 1)) {
+    return res.status(404).json({ error: 'Pagina non trovata' });
+  }
+
+  try {
+    const pngBuffer = await getThumbnail(bookId, pageNum, THUMB_SCALE);
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Content-Length', pngBuffer.length);
+    res.setHeader('Cache-Control', 'private, no-store, max-age=0, must-revalidate');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Disposition', `inline; filename="${book.slug}-thumb-p${pageNum}.png"`);
+    res.send(pngBuffer);
+  } catch (err) {
+    console.error('Thumb error:', err);
+    logRasterPage({
+      userId, bookId, token,
+      ip: req.ip || 'unknown', ua: req.headers['user-agent'] || '',
+      pageNum, scale: THUMB_SCALE, success: false, reason: err.message,
+      latencyMs: Date.now() - startTime
+    });
+    res.status(500).json({ error: 'Errore generazione thumbnail' });
+  }
+});
+
 /* ============================================================
    CLEANUP CACHE RASTER (chiamato da cleanup.js)
    ============================================================ */
@@ -257,5 +362,6 @@ module.exports = {
   router,
   rasterizePage,
   getRasterPage,
+  getThumbnail,
   cleanupRasterCache
 };

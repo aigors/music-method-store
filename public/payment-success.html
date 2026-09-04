@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pagamento completato — Music Method Store</title>
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/styles.css?v={{buildVersion}}">
 </head>
 <body>
   <header class="site-header">
@@ -37,7 +37,7 @@
     </div>
   </footer>
 
-  <script nonce="{{cspNonce}}" type="module" src="/js/main.js"></script>
+  <script nonce="{{cspNonce}}" type="module" src="/js/main.js?v={{buildVersion}}"></script>
   <script nonce="{{cspNonce}}" type="module">
     import { apiFetch, showAlert, hideAlert } from '/js/main.js';
 

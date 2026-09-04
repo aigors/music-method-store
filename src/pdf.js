@@ -7,13 +7,127 @@ const path = require('path');
 const crypto = require('crypto');
 const { PDFDocument, rgb, StandardFonts, degrees } = require('pdf-lib');
 
-const { getBookById, hasPurchased, createViewToken, consumeViewToken, cleanup, getIpPrefix, hashDeviceFingerprint } = require('./db');
+// pdfjs-dist legacy per estrazione outline (sommario) server-side
+const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.mjs');
+
+const { getBookById, hasPurchased, createViewToken, consumeViewToken, cleanup, getIpPrefix, hashDeviceFingerprint, getTokenSource } = require('./db');
 const { logTokenCreate, logStreamChunk, logTokenReuse, ACTIONS } = require('./audit');
 
 const PDF_DIR = process.env.PDF_DIR || path.resolve(__dirname, '..', 'data', 'pdfs');
 const CACHE_DIR = process.env.CACHE_DIR || path.resolve(__dirname, '..', 'data', 'cache');
 
 if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
+
+/* ============================================================
+   ESTRAZIONE OUTLINE (sommario/indice) dal PDF
+   ============================================================ */
+
+// CanvasFactory per @napi-rs/canvas (come in pdf-raster.js / catalog.js)
+function makeCanvasFactory() {
+  let napiCanvas;
+  try {
+    napiCanvas = require('@napi-rs/canvas');
+  } catch (e) {
+    throw new Error('@napi-rs/canvas non installato');
+  }
+  class NapiCanvasFactory {
+    constructor({ enableHWA = false } = {}) { this.enableHWA = enableHWA; }
+    create(width, height) {
+      if (width <= 0 || height <= 0) throw new Error('Invalid canvas size');
+      const canvas = napiCanvas.createCanvas(width, height);
+      const context = canvas.getContext('2d', { willReadFrequently: !this.enableHWA });
+      return { canvas, context };
+    }
+    reset(canvasAndContext, width, height) {
+      if (!canvasAndContext.canvas) throw new Error('Canvas is not specified');
+      if (width <= 0 || height <= 0) throw new Error('Invalid canvas size');
+      canvasAndContext.canvas.width = width;
+      canvasAndContext.canvas.height = height;
+    }
+    destroy(canvasAndContext) {
+      if (!canvasAndContext.canvas) throw new Error('Canvas is not specified');
+      canvasAndContext.canvas.width = 0;
+      canvasAndContext.canvas.height = 0;
+      canvasAndContext.canvas = null;
+      canvasAndContext.context = null;
+    }
+  }
+  return new NapiCanvasFactory();
+}
+
+/**
+ * Risolve la destinazione di una voce di outline verso il numero di pagina (1-indexed).
+ * Supporta dest come array ([ref, ...]) o come named destination (stringa).
+ */
+async function resolveOutlinePage(pdfDoc, dest) {
+  if (!dest) return null;
+  let target = dest;
+  if (typeof dest === 'string') {
+    try { target = await pdfDoc.getDestination(dest); } catch { return null; }
+    if (!target) return null;
+  }
+  const ref = target[0];
+  if (!ref || typeof ref === 'string' || typeof ref === 'number') return null;
+  try {
+    const pageIndex = await pdfDoc.getPageIndex(ref);
+    return pageIndex + 1;
+  } catch {
+    return null;
+  }
+}
+
+async function walkOutline(pdfDoc, items) {
+  const out = [];
+  for (const item of items || []) {
+    const page = await resolveOutlinePage(pdfDoc, item.dest);
+    const children = item.items && item.items.length ? await walkOutline(pdfDoc, item.items) : [];
+    out.push({
+      title: (item.title || '').trim(),
+      page: page || null,
+      children
+    });
+  }
+  return out;
+}
+
+/**
+ * Estrae il sommario (outline) del PDF, con cache su disco chiave (bookId, mtime).
+ * Ritorna [] se il PDF non ha outline.
+ */
+async function getOutlineForBook(bookId) {
+  const book = getBookById(bookId);
+  if (!book) return [];
+  const sourcePath = path.join(PDF_DIR, book.pdfFile);
+  if (!fs.existsSync(sourcePath)) return [];
+
+  const stat = fs.statSync(sourcePath);
+  const cacheFile = path.join(CACHE_DIR, `outline-${bookId}-${stat.mtimeMs}.json`);
+  if (fs.existsSync(cacheFile)) {
+    try { return JSON.parse(fs.readFileSync(cacheFile, 'utf8')); } catch {}
+  }
+
+  const data = new Uint8Array(fs.readFileSync(sourcePath));
+  const loadingTask = pdfjsLib.getDocument({
+    data,
+    disableFontFace: true,
+    isEvalSupported: false,
+    canvasFactory: makeCanvasFactory()
+  });
+
+  let pdfDoc;
+  try {
+    pdfDoc = await loadingTask.promise;
+    const outline = await pdfDoc.getOutline();
+    const result = outline && outline.length ? await walkOutline(pdfDoc, outline) : [];
+    // Cache anche il risultato vuoto (il nome file include mtime → si invalida
+    // da solo quando il PDF cambia): evita il re-parse a ogni apertura del viewer.
+    try { fs.writeFileSync(cacheFile, JSON.stringify(result)); } catch {}
+    return result;
+  } catch (err) {
+    console.error('Outline error:', err.message);
+    return [];
+  }
+}
 
 /* ============================================================
    WATERMARK dinamico (visibile + forense invisibile LSB)
@@ -235,9 +349,15 @@ router.post('/view-token', async (req, res) => {
   const userAgent = req.headers['user-agent'] || '';
   const deviceFpHash = deviceFingerprint ? hashDeviceFingerprint(deviceFingerprint) : null;
 
-  // Token 10 min, 3 usi (per Range requests)
+  // Raster (highSecurity): ogni pagina è una richiesta separata + re-render di
+  // zoom/resize, quindi servono molti usi e un TTL più lungo.
+  // Streaming PDF: 3 usi bastano per le Range requests.
+  const highSecurity = !!book.highSecurity;
+  const ttlMinutes = highSecurity ? 60 : 10;
+  const maxUses = highSecurity ? Math.max((book.pages || 1) * 3, 300) : 3;
+
   const { token, expiresAt } = createViewToken(
-    userId, bookId, 10, 3,
+    userId, bookId, ttlMinutes, maxUses,
     deviceFpHash, ipPrefix, userAgent, clientIp
   );
 
@@ -250,6 +370,43 @@ router.post('/view-token', async (req, res) => {
     ua: userAgent,
     highSecurity: !!book.highSecurity,
     latencyMs: Date.now() - startTime
+  });
+
+  res.json({ token, expiresAt, bookId: book.id, bookSlug: book.slug, highSecurity: !!book.highSecurity });
+});
+
+// POST /api/pdf/admin-preview-token/:bookId — token di test admin (senza verifica acquisto)
+router.post('/admin-preview-token/:bookId', async (req, res) => {
+  const userId = req.session.user.id;
+  if (!req.session.user.isAdmin) {
+    return res.status(403).json({ error: 'Solo gli amministratori possono testare i metodi' });
+  }
+
+  const bookId = parseInt(req.params.bookId, 10);
+  const book = getBookById(bookId);
+  if (!book || !book.isActive) {
+    return res.status(404).json({ error: 'Metodo non trovato' });
+  }
+
+  // Nessun bind fingerprint (admin testa da qualsiasi device).
+  // Raster (highSecurity): una richiesta per pagina + re-render di zoom/resize,
+  // quindi molti usi e TTL più lungo.
+  const highSecurity = !!book.highSecurity;
+  const ttlMinutes = highSecurity ? 60 : 30;
+  const maxUses = highSecurity ? Math.max((book.pages || 1) * 3, 300) : 50;
+
+  const { token, expiresAt } = createViewToken(
+    userId, bookId, ttlMinutes, maxUses,
+    null, null, null, req.ip || 'unknown',
+    'admin_preview'
+  );
+
+  logTokenCreate({
+    userId, bookId, token,
+    ip: req.ip || 'unknown',
+    ua: req.headers['user-agent'] || '',
+    highSecurity: !!book.highSecurity,
+    latencyMs: 0
   });
 
   res.json({ token, expiresAt, bookId: book.id, bookSlug: book.slug, highSecurity: !!book.highSecurity });
@@ -375,6 +532,35 @@ router.get('/stream/:bookId', async (req, res) => {
     res.setHeader('Content-Disposition', `inline; filename="${book.slug}.pdf"`);
     res.setHeader('X-Content-Type-Options', 'nosniff');
     fs.createReadStream(cachePath).pipe(res);
+  }
+});
+
+// GET /api/pdf/outline/:bookId — sommario/indice del PDF (metadata)
+// Non consuma view token: sono solo metadati. Accesso: acquisto oppure token admin_preview.
+router.get('/outline/:bookId', async (req, res) => {
+  const bookId = parseInt(req.params.bookId, 10);
+  const token = req.query.token;
+  const userId = req.session?.user?.id;
+  if (!userId) {
+    return res.status(401).json({ error: 'Non autenticato' });
+  }
+
+  const book = getBookById(bookId);
+  if (!book || !book.isActive) {
+    return res.status(404).json({ error: 'Metodo non trovato' });
+  }
+
+  const tokenSource = getTokenSource(token);
+  if (tokenSource !== 'admin_preview' && !hasPurchased(userId, bookId)) {
+    return res.status(403).json({ error: 'Non hai acquistato questo metodo' });
+  }
+
+  try {
+    const outline = await getOutlineForBook(bookId);
+    res.json({ outline });
+  } catch (err) {
+    console.error('Outline endpoint error:', err);
+    res.status(500).json({ error: 'Errore estrazione indice' });
   }
 });
 

@@ -111,16 +111,13 @@ export async function updateAuthNav() {
 async function doLogout() {
   try {
     await apiFetch('/auth/logout', { method: 'POST' });
-    currentUser = null;
-    updateAuthNav();
-    // Se siamo in pagine protette, redirect alla pagina iniziale
-    if (window.location.pathname.startsWith('/account') ||
-        window.location.pathname.startsWith('/viewer')) {
-      window.location.href = '/';
-    }
   } catch (e) {
     console.error('Logout error:', e);
   }
+  // Reindirizza sempre alla home (catalogo) dopo il logout,
+  // indipendentemente dalla pagina corrente (account, viewer, admin…)
+  currentUser = null;
+  window.location.href = '/';
 }
 
 // Inizializza nav all'avvio

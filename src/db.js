@@ -112,12 +112,18 @@ function initDb() {
       device_fp TEXT,                        -- hash fingerprint client (UA + screen + tz + lang)
       ip_prefix TEXT,                        -- IP prefix (/16 IPv4, /64 IPv6)
       user_agent TEXT,                       -- UA completo per audit
-      created_ip TEXT                        -- IP creazione token
+      created_ip TEXT,                       -- IP creazione token
+      source     TEXT DEFAULT NULL           -- 'admin_preview' per token di test admin
     );
     CREATE INDEX IF NOT EXISTS idx_view_tokens_user_book ON view_tokens(userId, bookId);
   `;
 
   db.exec(schema);
+
+  // Migrazione: aggiungi source a view_tokens se non esiste
+  try {
+    db.prepare('ALTER TABLE view_tokens ADD COLUMN source TEXT DEFAULT NULL').run();
+  } catch (e) { /* colonna già esistente */ }
 
   // Migrazione: aggiungi isAdmin se non esiste (per DB esistenti)
   try {
@@ -390,13 +396,13 @@ function createPurchase(userId, bookId, paypalOrderId, amountCents, currency = '
 
 const { randomUUID } = require('crypto');
 
-function createViewToken(userId, bookId, ttlMinutes = 10, maxUses = 1, deviceFp = null, ipPrefix = null, userAgent = null, createdIp = null) {
+function createViewToken(userId, bookId, ttlMinutes = 10, maxUses = 1, deviceFp = null, ipPrefix = null, userAgent = null, createdIp = null, source = null) {
   const token = randomUUID();
   const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000).toISOString();
 
   db.prepare(
-    'INSERT INTO view_tokens (userId, bookId, token, expiresAt, maxUses, device_fp, ip_prefix, user_agent, created_ip) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
-  ).run(userId, bookId, token, expiresAt, maxUses, deviceFp, ipPrefix, userAgent, createdIp);
+    'INSERT INTO view_tokens (userId, bookId, token, expiresAt, maxUses, device_fp, ip_prefix, user_agent, created_ip, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  ).run(userId, bookId, token, expiresAt, maxUses, deviceFp, ipPrefix, userAgent, createdIp, source);
 
   return { token, expiresAt };
 }
@@ -476,6 +482,14 @@ function getViewToken(token) {
   return db.prepare(
     'SELECT * FROM view_tokens WHERE token = ?'
   ).get(token);
+}
+
+/**
+ * Restituisce il source di un token (es. 'admin_preview')
+ */
+function getTokenSource(token) {
+  const row = db.prepare('SELECT source FROM view_tokens WHERE token = ?').get(token);
+  return row ? row.source : null;
 }
 
 /* ============================================================
@@ -582,6 +596,7 @@ module.exports = {
   createViewToken,
   consumeViewToken,
   getViewToken,
+  getTokenSource,
   // device binding (Fase 1)
   getIpPrefix,
   hashDeviceFingerprint,

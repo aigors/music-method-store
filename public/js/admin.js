@@ -179,6 +179,9 @@ async function loadBooks() {
             <button class="btn btn-sm btn-info" data-action="regenerate-cover" data-id="${b.id}" title="Rigenera cover dalla prima pagina">🔄 Cover</button>
           ` : ''}
           <button class="btn btn-sm btn-danger" data-action="delete-book" data-id="${b.id}" data-title="${escapeHtml(b.title)}">Rimuovi</button>
+          ${b.pdfFile && b.pdfExists ? `
+            <a href="/viewer/${b.id}?admin=1" target="_blank" class="btn btn-sm btn-info" title="Testa visualizzazione come acquistato">👁 Testa</a>
+          ` : ''}
         </td>
       </tr>
     `).join('');

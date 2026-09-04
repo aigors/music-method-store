@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes">
   <meta name="referrer" content="no-referrer">
   <title>Visualizzatore — Music Method Store</title>
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/styles.css?v={{buildVersion}}">
   <!-- Trusted Types policy (definita prima degli script) -->
   <script nonce="{{cspNonce}}">
     if (window.trustedTypes && trustedTypes.createPolicy) {
@@ -18,6 +18,11 @@
   </script>
   <style nonce="{{cspNonce}}">
     /* Viewer-specific styles (inline to avoid extra request) */
+    /* Il viewer occupa tutta l'altezza del viewport: nessuno scroll di pagina,
+       sidebar (indice) e canvas scorrono internamente. Necessario anche per
+       il lazy-load corretto delle thumbnail via IntersectionObserver. */
+    html, body { height: 100%; }
+    body { overflow: hidden; }
     .viewer-header { position: sticky; top: 0; z-index: 100; background: var(--bg); border-bottom: 1px solid var(--border); padding: 0.75rem 0; }
     .viewer-toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; justify-content: space-between; }
     .viewer-title { font-weight: 600; font-size: 0.95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 40%; }
@@ -28,12 +33,49 @@
     .page-input { width: 4rem; text-align: center; border: 1px solid var(--border); border-radius: 6px; padding: 0.35rem; background: var(--bg); color: var(--text); }
     .zoom-select { border: 1px solid var(--border); border-radius: 6px; padding: 0.35rem 0.5rem; background: var(--bg); color: var(--text); }
 
-    #viewer-container { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg-secondary); }
+    #viewer-container { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg-secondary); position: relative; }
     .pdf-canvas-wrapper { flex: 1; display: flex; align-items: center; justify-content: center; overflow: auto; background: #222; }
     .pdf-page-canvas { display: block; box-shadow: 0 0 0 1px rgba(0,0,0,0.1), 0 4px 12px rgba(0,0,0,0.15); background: white; max-width: 100%; height: auto; touch-action: none; }
 
     .loading-overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(255,255,255,0.95); gap: 1rem; z-index: 50; }
     .loading-overlay.hidden { display: none; }
+    .preview-banner { background: #fff3cd; color: #664d03; border-bottom: 1px solid #ffc107; text-align: center; padding: 0.5rem 1rem; font-size: 0.85rem; font-weight: 600; }
+
+    /* Layout: sidebar indice a sinistra + viewer */
+    .viewer-layout { flex: 1; display: flex; overflow: hidden; }
+    .page-index { width: 180px; min-width: 180px; background: var(--bg); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+    .page-index.hidden { display: none; }
+    .page-index-title { padding: 0.6rem 0.75rem; font-weight: 600; font-size: 0.8rem; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+    .page-index-list { flex: 1; overflow-y: auto; padding: 0.5rem; display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.25rem; align-content: start; }
+    .page-index-item { border: 1px solid var(--border); border-radius: 5px; background: none; color: var(--text); font-size: 0.7rem; line-height: 1; padding: 0.4rem 0; cursor: pointer; text-align: center; transition: background 0.15s, border-color 0.15s; }
+    .page-index-item:hover { background: var(--bg-hover); border-color: var(--primary); }
+    .page-index-item.active { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 600; }
+    .icon-btn.active { color: var(--primary); border-color: var(--primary); background: var(--bg-hover); }
+
+    /* Indice: sommario gerarchico (outline) */
+    .page-index-list.index-outline { display: block; }
+    .outline-item { display: flex; align-items: center; gap: 0.35rem; text-align: left; border-radius: 5px; padding: 0.35rem 0.5rem; width: 100%; font-size: 0.72rem; line-height: 1.25; }
+    .outline-item:hover { background: var(--bg-hover); border-color: var(--primary); }
+    .outline-item.active { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 600; }
+    .outline-caret { flex: 0 0 auto; cursor: pointer; font-size: 0.7rem; width: 1rem; opacity: 0.8; user-select: none; }
+    .outline-title { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; }
+    .outline-page { flex: 0 0 auto; font-size: 0.65rem; opacity: 0.75; }
+    .outline-children { display: block; }
+
+    /* Indice: thumbnail verticali */
+    .page-index.has-thumbs { width: 150px; min-width: 150px; }
+    .page-index-list.index-thumbs { display: flex; flex-direction: column; gap: 0.5rem; }
+    .thumb-item { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 0.3rem; cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; }
+    .thumb-item:hover { border-color: var(--primary); }
+    .thumb-item.active { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary); }
+    .thumb-item img { width: 100%; height: auto; border-radius: 3px; background: #fff; display: block; min-height: 40px; }
+    .thumb-caption { font-size: 0.65rem; color: var(--text-muted); }
+    .thumb-item.active .thumb-caption { color: var(--primary); font-weight: 600; }
+
+    @media (max-width: 640px) {
+      .page-index { width: 120px; min-width: 120px; }
+      .page-index.has-thumbs { width: 110px; min-width: 110px; }
+    }
 
     .watermark-notice { position: fixed; bottom: 1rem; right: 1rem; background: var(--primary); color: white; padding: 0.5rem 1rem; border-radius: 6px; font-size: 0.75rem; opacity: 0.9; z-index: 200; pointer-events: none; }
 
@@ -61,6 +103,9 @@
         </button>
       </div>
       <div class="toolbar-group">
+        <button class="icon-btn" id="btn-index" aria-label="Mostra o nascondi l'indice" title="Indice pagine">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+        </button>
         <select class="zoom-select" id="zoom-select" aria-label="Livello zoom">
           <option value="auto">Adatta larghezza</option>
           <option value="page">Adatta pagina</option>
@@ -81,13 +126,21 @@
     </div>
   </header>
 
-  <main id="viewer-container" class="viewer-container" role="main">
-    <div class="pdf-canvas-wrapper" id="canvas-wrapper">
+  <div id="preview-banner" class="preview-banner" hidden>👁 Modalità test admin — stai visualizzando questo metodo come se fosse stato acquistato.</div>
+
+  <main class="viewer-layout">
+    <aside class="page-index" id="page-index" aria-label="Indice pagine">
+      <div class="page-index-title">Indice</div>
+      <div class="page-index-list" id="page-index-list"></div>
+    </aside>
+    <div id="viewer-container" class="viewer-container" role="main">
+      <div class="pdf-canvas-wrapper" id="canvas-wrapper">
+        <!-- Il canvas/immagine viene inserito qui da PDF.js -->
+      </div>
       <div class="loading-overlay" id="loading-overlay">
         <div class="spinner" style="width: 40px; height: 40px; border-width: 3px;"></div>
         <p>Caricamento PDF…</p>
       </div>
-      <!-- Il canvas viene inserito qui da PDF.js -->
     </div>
   </main>
 
@@ -102,8 +155,7 @@
   </footer>
 
   <!-- PDF.js library (locale, no CDN) -->
-  <script nonce="{{cspNonce}}" src="/lib/pdf.min.js"></script>
-  <script nonce="{{cspNonce}}" type="module" src="/js/main.js"></script>
-  <script nonce="{{cspNonce}}" type="module" src="/js/viewer.js"></script>
+  <script nonce="{{cspNonce}}" type="module" src="/js/main.js?v={{buildVersion}}"></script>
+  <script nonce="{{cspNonce}}" type="module" src="/js/viewer.js?v={{buildVersion}}"></script>
 </body>
 </html>

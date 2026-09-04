@@ -312,20 +312,27 @@ router.get('/cover/:bookId', async (req, res) => {
    API CATALOGO (pubblico — non richiede auth)
    ============================================================ */
 
-// GET /api/catalog — lista metodi
+// GET /api/catalog — lista metodi (include flag "purchased" per l'utente loggato)
 router.get('/', (req, res) => {
-  const books = listBooks({ onlyActive: true }).map(b => ({
-    id: b.id,
-    slug: b.slug,
-    title: b.title,
-    author: b.author,
-    description: b.description,
-    priceCents: b.priceCents,
-    priceEur: (b.priceCents / 100).toFixed(2),
-    coverFile: b.coverFile,
-    coverUrl: `/api/catalog/cover/${b.id}`, // URL per cover generata dalla prima pagina
-    pages: b.pages
-  }));
+  const books = listBooks({ onlyActive: true }).map(b => {
+    let purchased = false;
+    if (req.session.user?.id) {
+      purchased = !!hasPurchased(req.session.user.id, b.id);
+    }
+    return {
+      id: b.id,
+      slug: b.slug,
+      title: b.title,
+      author: b.author,
+      description: b.description,
+      priceCents: b.priceCents,
+      priceEur: (b.priceCents / 100).toFixed(2),
+      coverFile: b.coverFile,
+      coverUrl: `/api/catalog/cover/${b.id}`, // URL per cover generata dalla prima pagina
+      pages: b.pages,
+      purchased
+    };
+  });
   res.json({ books });
 });
 

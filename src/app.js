@@ -22,6 +22,8 @@ const { PDF_DIR } = require('./db');
 function createApp() {
   const app = express();
   const isProd = process.env.NODE_ENV === 'production';
+  // Build version: changes on each server restart → busts browser cache for JS/CSS
+  const BUILD_VERSION = Date.now().toString(36);
 
   // ========================================================
   // Sicurezza di base (Helmet) — CSP con nonce per script inline
@@ -157,8 +159,11 @@ function createApp() {
     fs.readFile(filePath, 'utf8', (err, content) => {
       if (err) return res.status(500).send('Errore caricamento pagina');
       const nonce = res.locals.cspNonce;
-      const rendered = content.replace(/\{\{cspNonce\}\}/g, nonce);
+      const rendered = content
+        .replace(/\{\{cspNonce\}\}/g, nonce)
+        .replace(/\{\{buildVersion\}\}/g, BUILD_VERSION);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache');
       res.send(rendered);
     });
   }
@@ -222,8 +227,11 @@ function createApp() {
     fs.readFile(viewerPath, 'utf8', (err, content) => {
       if (err) return res.status(500).send('Errore caricamento viewer');
       const nonce = res.locals.cspNonce;
-      const rendered = content.replace(/\{\{cspNonce\}\}/g, nonce);
+      const rendered = content
+        .replace(/\{\{cspNonce\}\}/g, nonce)
+        .replace(/\{\{buildVersion\}\}/g, BUILD_VERSION);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache');
       res.send(rendered);
     });
   }
@@ -245,8 +253,11 @@ function createApp() {
     fs.readFile(adminPath, 'utf8', (err, content) => {
       if (err) return res.status(500).send('Errore caricamento admin');
       const nonce = res.locals.cspNonce;
-      const rendered = content.replace(/\{\{cspNonce\}\}/g, nonce);
+      const rendered = content
+        .replace(/\{\{cspNonce\}\}/g, nonce)
+        .replace(/\{\{buildVersion\}\}/g, BUILD_VERSION);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache');
       res.send(rendered);
     });
   }
@@ -269,8 +280,11 @@ function createApp() {
     fs.readFile(filePath, 'utf8', (err, content) => {
       if (err) return res.status(404).send('Pagina non trovata');
       const nonce = res.locals.cspNonce;
-      const rendered = content.replace(/\{\{cspNonce\}\}/g, nonce);
+      const rendered = content
+        .replace(/\{\{cspNonce\}\}/g, nonce)
+        .replace(/\{\{buildVersion\}\}/g, BUILD_VERSION);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache');
       res.status(404).send(rendered);
     });
   });
