@@ -14,7 +14,8 @@ const {
   createPasswordResetToken,
   getPasswordResetToken,
   markPasswordResetTokenUsed,
-  updateUserPassword
+  updateUserPassword,
+  getUserPasswordHash
 } = require('./db');
 
 const { sendTwoFaEmail, sendPasswordResetEmail } = require('./mail');
@@ -54,9 +55,13 @@ function requireAdmin(req, res, next) {
    API AUTENTICAZIONE (JSON)
    ============================================================ */
 
-// Stato utente corrente
+// Stato utente corrente (arricchito con dati freschi dal DB)
 router.get('/me', (req, res) => {
-  res.json({ user: req.session.user || null });
+  const sessionUser = req.session.user;
+  if (!sessionUser) return res.json({ user: null });
+  const dbUser = findUserById(sessionUser.id);
+  if (!dbUser) return res.json({ user: null });
+  res.json({ user: { ...dbUser, twoFaVerified: !!sessionUser.twoFaVerified } });
 });
 
 // Login: invia codice 2FA via mail
@@ -190,6 +195,33 @@ router.post('/reset-password', strictLimiter, (req, res) => {
 
   // Se l'utente è loggato con sessione 2FA non verificata, mantieni pulita la sessione
   res.json({ ok: true, message: 'Password aggiornata. Ora puoi accedere con la nuova password.' });
+});
+
+// Modifica password (utente autenticato)
+router.post('/change-password', strictLimiter, requireAuth, (req, res) => {
+  const { currentPassword, newPassword, newPassword2 } = req.body;
+  const userId = req.session.user.id;
+
+  if (!currentPassword || !newPassword || !newPassword2) {
+    return res.status(400).json({ error: 'Compila tutti i campi' });
+  }
+  if (newPassword !== newPassword2) {
+    return res.status(400).json({ error: 'Le nuove password non coincidono' });
+  }
+  if (newPassword.length < 8) {
+    return res.status(400).json({ error: 'Password minima 8 caratteri' });
+  }
+
+  const hash = getUserPasswordHash(userId);
+  if (!hash) {
+    return res.status(404).json({ error: 'Utente non trovato' });
+  }
+  if (!checkPassword(currentPassword, hash)) {
+    return res.status(401).json({ error: 'Password attuale errata' });
+  }
+
+  updateUserPassword(userId, newPassword);
+  res.json({ ok: true, message: 'Password aggiornata con successo' });
 });
 
 // Logout

@@ -154,10 +154,18 @@ function createApp() {
   app.use('/api/pdf', requireAuth, requireTwoFaVerified, pdfRasterRouter.router);
   app.use('/api/admin', requireAuth, requireAdmin, adminRouter);
 
-  // API acquisti utente
+  // API acquisti utente (con sommario spese)
   app.get('/api/purchases', requireAuth, (req, res) => {
     const purchases = listPurchases(req.session.user.id);
-    res.json({ purchases });
+    const totalCents = purchases.reduce((sum, p) => sum + (p.amountCents || 0), 0);
+    res.json({
+      purchases,
+      summary: {
+        count: purchases.length,
+        totalCents,
+        totalEur: (totalCents / 100).toFixed(2)
+      }
+    });
   });
 
   // ========================================================

@@ -46,16 +46,57 @@
       </section>
 
       <section class="account-section">
+        <h2>Riepilogo acquisti</h2>
+        <div class="summary-cards">
+          <div class="summary-card">
+            <div class="summary-card-value" id="summary-count">—</div>
+            <div class="summary-card-label">Metodi acquistati</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-card-value" id="summary-spent">—</div>
+            <div class="summary-card-label">Totale speso</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="account-section">
         <h2>I miei metodi</h2>
         <div id="purchases-list" class="purchases-list"></div>
         <div id="purchases-empty" class="empty-state" hidden>
           <p>Non hai ancora acquistato nessun metodo.</p>
           <a href="/catalogo" class="btn btn-primary">Sfoglia il catalogo</a>
         </div>
+        <div id="purchases-all" hidden>
+          <a href="/i-miei-metodi" class="btn btn-outline">Vedi tutti i metodi acquistati</a>
+        </div>
       </section>
 
-      <section class="account-section account-actions">
-        <button type="button" class="btn btn-danger" id="logout-btn">Esci</button>
+      <section class="account-section">
+        <h2>Sicurezza</h2>
+        <div class="account-actions">
+          <button type="button" class="btn btn-outline" id="show-change-password">Cambia password</button>
+          <button type="button" class="btn btn-danger" id="logout-btn">Esci</button>
+        </div>
+
+        <div id="change-password-wrap" class="change-password-wrap" hidden>
+          <div id="pw-error" class="alert alert-error" hidden></div>
+          <div id="pw-success" class="alert alert-success" hidden></div>
+          <form id="change-password-form" novalidate>
+            <div class="form-group">
+              <label for="pw-current">Password attuale</label>
+              <input type="password" id="pw-current" name="currentPassword" required autocomplete="current-password" placeholder="••••••••">
+            </div>
+            <div class="form-group">
+              <label for="pw-new">Nuova password</label>
+              <input type="password" id="pw-new" name="newPassword" required autocomplete="new-password" placeholder="Minimo 8 caratteri" minlength="8">
+            </div>
+            <div class="form-group">
+              <label for="pw-new2">Conferma nuova password</label>
+              <input type="password" id="pw-new2" name="newPassword2" required autocomplete="new-password" placeholder="••••••••">
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Aggiorna password</button>
+          </form>
+        </div>
       </section>
     </div>
 
@@ -76,5 +117,12 @@
     import { loadAccount } from '/js/account.js';
     loadAccount();
   </script>
+  <style>
+    .summary-cards { display:grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap:1rem; }
+    .summary-card { background:var(--bg-secondary,#f3f4f6); border-radius:10px; padding:1.25rem 1rem; text-align:center; }
+    .summary-card-value { font-size:1.75rem; font-weight:700; color:var(--primary,#1d4ed8); }
+    .summary-card-label { font-size:0.9rem; color:var(--text-muted,#6b7280); margin-top:0.25rem; }
+    .change-password-wrap { margin-top:1.25rem; max-width:420px; }
+  </style>
 </body>
 </html>

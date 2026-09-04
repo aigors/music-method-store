@@ -557,6 +557,13 @@ function updateUserPassword(userId, newPassword) {
   return stmt.run(hashPassword(newPassword), userId).changes > 0;
 }
 
+/**
+ * Recupera l'hash della password di un utente (per verifica password attuale).
+ */
+function getUserPasswordHash(userId) {
+  return db.prepare('SELECT passwordHash FROM users WHERE id = ?').get(userId)?.passwordHash || null;
+}
+
 /* ============================================================
    CLEANUP periodico (chiamato da script/cleanup.js)
    ============================================================ */
@@ -592,6 +599,7 @@ module.exports = {
   getPasswordResetToken,
   markPasswordResetTokenUsed,
   updateUserPassword,
+  getUserPasswordHash,
   // books
   listBooks,
   getBookBySlug,
