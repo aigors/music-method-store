@@ -28,18 +28,20 @@ export async function loadAccount() {
     document.getElementById('profile-avatar').textContent =
       (user.firstName || user.email).charAt(0).toUpperCase();
 
-    // Carica acquisti + sommario
-    await loadPurchasesSummary();
-    await loadPurchasesList();
-
+    // Mostra contenuto e aggancia listener PRIMA delle chiamate async,
+    // così i bottoni funzionano anche se un caricamento secondario fallisce
     showElement('account-loading', false);
     showElement('account-content', true);
 
-    // Logout button
-    document.getElementById('logout-btn')?.addEventListener('click', doLogout);
+    // Logout button (ID univoco: il header ha già un #logout-btn creato da main.js)
+    document.getElementById('account-logout-btn')?.addEventListener('click', doLogout);
     // Cambia password
     document.getElementById('show-change-password')?.addEventListener('click', toggleChangePassword);
     document.getElementById('change-password-form')?.addEventListener('submit', handleChangePassword);
+
+    // Carica acquisti + sommario
+    await loadPurchasesSummary();
+    await loadPurchasesList();
   } catch (err) {
     showAlert('account-error', err.message);
     showElement('account-loading', false);
