@@ -55,8 +55,13 @@ export async function handleRegister(e) {
   const password2 = formData.get('password2');
   const firstName = formData.get('firstName');
   const lastName = formData.get('lastName');
-  const birthDate = formData.get('birthDate');
   const birthPlace = formData.get('birthPlace');
+
+  // Combina i campi giorno/mese/anno in formato YYYY-MM-DD
+  const day = (formData.get('birthDay') || '').trim();
+  const month = (formData.get('birthMonth') || '').trim();
+  const year = (formData.get('birthYear') || '').trim();
+  const birthDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 
   try {
     await apiFetch('/auth/register', {

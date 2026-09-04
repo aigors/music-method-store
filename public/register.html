@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Registrati — Music Method Store</title>
   <link rel="stylesheet" href="/styles.css?v={{buildVersion}}">
+  <style nonce="{{cspNonce}}">
+    .date-inputs { display: flex; gap: 0.5rem; }
+    .date-input  { width: 100%; text-align: center; padding: 0.35rem 0.25rem; font-size: 0.95rem; }
+  </style>
 </head>
 <body>
   <header class="site-header">
@@ -43,7 +47,17 @@
         <div class="form-row">
           <div class="form-group">
             <label for="birthDate">Data di nascita</label>
-            <input type="date" id="birthDate" name="birthDate" required>
+            <div class="date-inputs">
+              <input type="text" id="birthDay" name="birthDay" required
+                     inputmode="numeric" pattern="\d{1,2}" placeholder="GG"
+                     maxlength="2" class="date-input" aria-label="Giorno">
+              <input type="text" id="birthMonth" name="birthMonth" required
+                     inputmode="numeric" pattern="\d{1,2}" placeholder="MM"
+                     maxlength="2" class="date-input" aria-label="Mese">
+              <input type="text" id="birthYear" name="birthYear" required
+                     inputmode="numeric" pattern="\d{4}" placeholder="AAAA"
+                     maxlength="4" class="date-input" aria-label="Anno">
+            </div>
           </div>
           <div class="form-group">
             <label for="birthPlace">Luogo di nascita</label>
@@ -80,6 +94,29 @@
   <script nonce="{{cspNonce}}" type="module">
     import { handleRegister } from '/js/auth.js';
     document.getElementById('register-form').addEventListener('submit', handleRegister);
+
+    // Auto-avanzamento: GG→MM→AAAA quando il campo è pieno
+    const dayEl   = document.getElementById('birthDay');
+    const monthEl = document.getElementById('birthMonth');
+    const yearEl  = document.getElementById('birthYear');
+
+    function autoAdvance(el, nextEl, maxLen) {
+      el.addEventListener('input', () => {
+        el.value = el.value.replace(/\D/g, '').slice(0, maxLen);
+        if (el.value.length === maxLen && nextEl) nextEl.focus();
+      });
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && el.value === '' && el.previousElementSibling) {
+          const prev = el.previousElementSibling;
+          prev.focus();
+          prev.value = prev.value.slice(0, -1);
+        }
+      });
+    }
+
+    autoAdvance(dayEl, monthEl, 2);
+    autoAdvance(monthEl, yearEl, 2);
+    autoAdvance(yearEl, null, 4);
   </script>
 </body>
 </html>
