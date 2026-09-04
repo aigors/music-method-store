@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registrati — Music Method Store</title>
+  <link rel="stylesheet" href="/styles.css?v={{buildVersion}}">
+  <style nonce="{{cspNonce}}">
+    .date-inputs { display: flex; gap: 0.5rem; }
+    .date-input  { width: 100%; text-align: center; padding: 0.35rem 0.25rem; font-size: 0.95rem; }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="/" class="logo" aria-label="Music Method Store - Home">
+        <span class="logo-icon">🎵</span>
+        <span class="logo-text">Music Method Store</span>
+      </a>
+    </div>
+  </header>
+
+  <main class="container auth-main">
+    <div class="auth-card">
+      <h1>Registrati</h1>
+      <p class="auth-subtitle">Crea il tuo account per accedere ai metodi musicali.</p>
+
+      <div id="register-error" class="alert alert-error" hidden></div>
+
+      <form id="register-form" novalidate>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="firstName">Nome</label>
+            <input type="text" id="firstName" name="firstName" required autocomplete="given-name" placeholder="Mario">
+          </div>
+          <div class="form-group">
+            <label for="lastName">Cognome</label>
+            <input type="text" id="lastName" name="lastName" required autocomplete="family-name" placeholder="Rossi">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" required autocomplete="email" placeholder="tua@email.it">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="birthDate">Data di nascita</label>
+            <div class="date-inputs">
+              <input type="text" id="birthDay" name="birthDay" required
+                     inputmode="numeric" pattern="\d{1,2}" placeholder="GG"
+                     maxlength="2" class="date-input" aria-label="Giorno">
+              <input type="text" id="birthMonth" name="birthMonth" required
+                     inputmode="numeric" pattern="\d{1,2}" placeholder="MM"
+                     maxlength="2" class="date-input" aria-label="Mese">
+              <input type="text" id="birthYear" name="birthYear" required
+                     inputmode="numeric" pattern="\d{4}" placeholder="AAAA"
+                     maxlength="4" class="date-input" aria-label="Anno">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="birthPlace">Luogo di nascita</label>
+            <input type="text" id="birthPlace" name="birthPlace" required autocomplete="off" placeholder="es. Roma">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" required autocomplete="new-password" placeholder="Minimo 8 caratteri" minlength="8">
+        </div>
+
+        <div class="form-group">
+          <label for="password2">Conferma password</label>
+          <input type="password" id="password2" name="password2" required autocomplete="new-password" placeholder="••••••••">
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">Registrati e invia 2FA</button>
+      </form>
+
+      <p class="auth-footer">
+        Hai già un account? <a href="/login">Accedi</a>
+      </p>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>&copy; 2026 Music Method Store</p>
+    </div>
+  </footer>
+
+  <script nonce="{{cspNonce}}" type="module" src="/js/main.js?v={{buildVersion}}"></script>
+  <script nonce="{{cspNonce}}" type="module">
+    import { handleRegister } from '/js/auth.js';
+    document.getElementById('register-form').addEventListener('submit', handleRegister);
+
+    // Auto-avanzamento: GG→MM→AAAA quando il campo è pieno
+    const dayEl   = document.getElementById('birthDay');
+    const monthEl = document.getElementById('birthMonth');
+    const yearEl  = document.getElementById('birthYear');
+
+    function autoAdvance(el, nextEl, maxLen) {
+      el.addEventListener('input', () => {
+        el.value = el.value.replace(/\D/g, '').slice(0, maxLen);
+        if (el.value.length === maxLen && nextEl) nextEl.focus();
+      });
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && el.value === '' && el.previousElementSibling) {
+          const prev = el.previousElementSibling;
+          prev.focus();
+          prev.value = prev.value.slice(0, -1);
+        }
+      });
+    }
+
+    autoAdvance(dayEl, monthEl, 2);
+    autoAdvance(monthEl, yearEl, 2);
+    autoAdvance(yearEl, null, 4);
+  </script>
+</body>
+</html>

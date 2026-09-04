@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pagamento annullato — Music Method Store</title>
+  <link rel="stylesheet" href="/styles.css?v={{buildVersion}}">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="/" class="logo" aria-label="Music Method Store - Home">
+        <span class="logo-icon">🎵</span>
+        <span class="logo-text">Music Method Store</span>
+      </a>
+      <nav class="main-nav" aria-label="Navigazione principale">
+        <a href="/catalogo" class="nav-link">Catalogo</a>
+        <div id="auth-nav" class="auth-nav"></div>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container auth-main">
+    <div class="auth-card" style="text-align: center;">
+      <div class="cancel-icon" style="font-size: 4rem; margin-bottom: 1rem; color: var(--warning);">⚠️</div>
+      <h1>Pagamento annullato</h1>
+      <p class="auth-subtitle">Non è stato effettuato alcun addebito.</p>
+      <p id="cancel-details" style="margin: 1rem 0; color: var(--text-muted);">Puoi riprovare quando vuoi dal catalogo.</p>
+      <a href="/catalogo" class="btn btn-primary btn-block" style="margin-top: 1rem;">Torna al catalogo</a>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>&copy; 2026 Music Method Store</p>
+    </div>
+  </footer>
+
+  <script nonce="{{cspNonce}}" type="module" src="/js/main.js?v={{buildVersion}}"></script>
+  <script nonce="{{cspNonce}}" type="module">
+    import { apiFetch, showAlert, hideAlert } from '/js/main.js';
+
+    async function init() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const token = urlParams.get('token');
+      const orderId = urlParams.get('orderId');
+
+      const detailsEl = document.getElementById('cancel-details');
+      if (orderId) {
+        detailsEl.textContent = `L'ordine PayPal ${orderId} è stato annullato.`;
+      } else if (token) {
+        detailsEl.textContent = `Token PayPal: ${token}. Nessun addebito effettuato.`;
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

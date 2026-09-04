@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Music Method Store</title>
+  <link rel="stylesheet" href="/styles.css?v={{buildVersion}}">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="/" class="logo" aria-label="Music Method Store - Home">
+        <span class="logo-icon">🎵</span>
+        <span class="logo-text">Music Method Store</span>
+      </a>
+      <nav class="main-nav" aria-label="Navigazione principale">
+        <a href="/catalogo" class="nav-link">Catalogo</a>
+        <div id="auth-nav" class="auth-nav"></div>
+      </nav>
+    </div>
+  </header>
+
+  <main class="hero">
+    <div class="container">
+      <h1>Metodi musicali in PDF, protetti e sempre accessibili</h1>
+      <p class="lead">Acquista, leggi online con watermark personale, niente download. Il tuo metodo, ovunque tu sia.</p>
+      <div class="hero-actions">
+        <a href="/catalogo" class="btn btn-primary btn-lg">Sfoglia il catalogo</a>
+        <a href="/registrati" class="btn btn-outline btn-lg">Registrati</a>
+      </div>
+    </div>
+  </main>
+
+  <section class="features container">
+    <div class="feature-grid">
+      <article class="feature-card">
+        <span class="feature-icon">🔒</span>
+        <h3>PDF protetti</h3>
+        <p>Visualizzazione solo online con PDF.js. Download e stampa disabilitati. Watermark dinamico con la tua email e timestamp.</p>
+      </article>
+      <article class="feature-card">
+        <span class="feature-icon">📱</span>
+        <h3>Responsive</h3>
+        <p>Funziona su desktop, tablet e smartphone. Il viewer si adatta allo schermo, zoom e navigazione touch-friendly.</p>
+      </article>
+      <article class="feature-card">
+        <span class="feature-icon">🛡️</span>
+        <h3>2FA via email</h3>
+        <p>Accesso sicuro: userid + password + codice a 6 cifre inviato alla tua email. Nessuna app esterna necessaria.</p>
+      </article>
+      <article class="feature-card">
+        <span class="feature-icon">💳</span>
+        <h3>PayPal Sandbox</h3>
+        <p>Pagamenti sicuri con PayPal. Integrazione completa: ordine, approvazione, cattura e registrazione acquisto automatica.</p>
+      </article>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>&copy; 2026 Music Method Store. Servizio separato per Google Sites.</p>
+    </div>
+  </footer>
+
+  <script nonce="{{cspNonce}}" type="module" src="/js/main.js?v={{buildVersion}}"></script>
+</body>
+</html>

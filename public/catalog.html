@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Catalogo — Music Method Store</title>
+  <link rel="stylesheet" href="/styles.css?v={{buildVersion}}">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="/" class="logo" aria-label="Music Method Store - Home">
+        <span class="logo-icon">🎵</span>
+        <span class="logo-text">Music Method Store</span>
+      </a>
+      <nav class="main-nav" aria-label="Navigazione principale">
+        <a href="/catalogo" class="nav-link active" aria-current="page">Catalogo</a>
+        <div id="auth-nav" class="auth-nav"></div>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container catalog-main">
+    <div class="page-header">
+      <h1>Il nostro catalogo</h1>
+      <p>Metodi musicali per tutti gli strumenti e livelli. Acquisti sicuri, lettura protetta.</p>
+    </div>
+
+    <div id="catalog-loading" class="loading-state" aria-live="polite">
+      <div class="spinner"></div>
+      <p>Caricamento catalogo...</p>
+    </div>
+
+    <div id="catalog-error" class="error-state" hidden>
+      <p id="catalog-error-msg"></p>
+      <button class="btn btn-primary" onclick="loadCatalog()">Riprova</button>
+    </div>
+
+    <div id="catalog-grid" class="catalog-grid" hidden></div>
+
+    <div id="catalog-empty" class="empty-state" hidden>
+      <p>Nessun metodo disponibile al momento.</p>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>&copy; 2026 Music Method Store. Servizio separato per Google Sites.</p>
+    </div>
+  </footer>
+
+  <script nonce="{{cspNonce}}" type="module" src="/js/main.js?v={{buildVersion}}"></script>
+  <script nonce="{{cspNonce}}" type="module">
+    import { loadCatalog, renderCatalog } from '/js/catalog.js';
+    loadCatalog();
+  </script>
+</body>
+</html>

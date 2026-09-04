@@ -1,56 +1,22 @@
-# Top-level directories
-/distrib/
-/packages/
-/site/
-
-# Build artifacts
-native/*/work*
-native/*/build*
-native/*/status*
-
-cross/*/work*
-cross/*/build*
-cross/*/status*
-
-kernel/*/work*
-kernel/*/build*
-kernel/*/status*
-
-python/*/work*
-python/*/build*
-python/*/status*
-
-spk/*/work*
-spk/*/build*
-spk/*/publish*
-spk/*/status*
-spk/*/wheel*
-
-diyspk/*/work*
-diyspk/*/build*
-diyspk/*/status*
-
-toolchain/*/work*
-toolchain/*/build*
-toolchain/*/status*
-
-toolkit/*/work*
-toolkit/*/build*
-toolkit/*/status*
-
-# Local config
-local.mk
-
-# pnpm local store
-.pnpm-store/
-
-# macOS
+node_modules/
+.env
+data/db.sqlite
+data/db.sqlite-wal
+data/db.sqlite-shm
+data/cache/
+data/covers/
+data/logs/
+data/raster/
+data/pdfs/*.pdf
+npm-debug.log*
 .DS_Store
+cookies*.txt
 
-# Temporary files
-*~
-
-# IDEs
-.idea/
-.vscode/
-*.spk
+# File di test/debug locali (non parte del progetto)
+check-ops.js
+test-pdfjs.mjs
+real-test.pdf
+catalog-screenshot.png
+cover-test.png
+styles.css
+*.pdf
