@@ -1,0 +1,39 @@
+# ============================================================
+# Music Method Store — Docker Compose
+#
+# Uso:
+#   docker compose up -d            # avvia (usa .env per i segreti)
+#   docker compose build            # ricostruisce dopo le modifiche
+#   docker compose logs -f          # log
+#   docker compose down             # ferma (i dati restano nel volume)
+#
+# Il container espone la porta 3000: l'nginx esistente della VPS
+# (proxy_pass http://127.0.0.1:3000) continua a funzionare senza
+# modifiche. Per test locale in HTTP semplice usa NODE_ENV=development
+# nel tuo .env (i cookie "secure" richiedono HTTPS).
+# ============================================================
+
+services:
+  musicstore:
+    build: .
+    image: music-method-store:latest
+    container_name: musicstore
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    # I segreti (SESSION_SECRET, SMTP_*, PAYPAL_*) arrivano dal .env
+    # condiviso con la versione nativa.
+    env_file: .env
+    environment:
+      # I percorsi dati devono essere quelli DENTRO il container,
+      # sovrascrivono eventuali path host del .env (/var/lib/musicstore/...)
+      DB_PATH: /app/data/db.sqlite
+      PDF_DIR: /app/data/pdfs
+      CACHE_DIR: /app/data/cache
+      NODE_ENV: ${NODE_ENV:-production}
+    volumes:
+      # Persistenza: db.sqlite, pdfs/, cache/, covers/ in un volume Docker
+      - musicstore_data:/app/data
+
+volumes:
+  musicstore_data:

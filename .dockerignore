@@ -1,0 +1,33 @@
+# Dipendenze e build artifacts — installati dentro l'immagine
+node_modules/
+npm-debug.log*
+
+# Dati locali (non copiare DB/PDF/cache nell'immagine)
+data/
+
+# Segreti — NON entrano nell'immagine (passati a runtime via env_file)
+.env
+.env.*
+!.env.example
+
+# Controllo versioni
+.git/
+.gitignore
+.gitattributes
+
+# Script di deploy nativo (PM2/systemd/nginx) — inutili nel container
+deploy.sh
+setup-vps.sh
+ecosystem.config.js
+musicstore.service
+nginx.conf
+backup-cron.sh
+DEPLOY.md
+
+# File di test/debug locale
+check-ops.js
+test-pdfjs.mjs
+real-test.pdf
+catalog-screenshot.png
+cover-test.png
+*.log
