@@ -33,9 +33,7 @@ export async function loadAccount() {
     showElement('account-loading', false);
     showElement('account-content', true);
 
-    // Logout button (ID univoco: il header ha già un #logout-btn creato da main.js)
-    document.getElementById('account-logout-btn')?.addEventListener('click', doLogout);
-    // Cambia password
+    // Cambia password (il logout è già nel header, gestito da main.js)
     document.getElementById('show-change-password')?.addEventListener('click', toggleChangePassword);
     document.getElementById('change-password-form')?.addEventListener('submit', handleChangePassword);
 
@@ -166,15 +164,6 @@ async function handleChangePassword(e) {
 }
 
 /* ── Logout ──────────────────────────────────────────────── */
-
-async function doLogout() {
-  try {
-    await apiFetch('/auth/logout', { method: 'POST' });
-    window.location.href = '/';
-  } catch (err) {
-    showAlert('account-error', err.message);
-  }
-}
 
 function escapeHtml(text) {
   const div = document.createElement('div');
