@@ -1,0 +1,70 @@
+#!/bin/sh
+# iVentoy start-stop-status script for DSM 6/7 compatibility
+
+WRAPPER="/var/packages/iventoy/target/iventoy-wrapper.sh"
+PID_FILE="/var/run/iventoy.pid"
+NGINX_CONF="/var/packages/iventoy/target/nginx/iventoy.conf"
+
+start_daemon() {
+    export LD_LIBRARY_PATH="/var/packages/iventoy/target/lib:${LD_LIBRARY_PATH}"
+
+    iptables -C INPUT -i lo -p tcp --dport 26000 -j ACCEPT 2>/dev/null || \
+        iptables -I INPUT -i lo -p tcp --dport 26000 -j ACCEPT
+    iptables -C INPUT ! -i lo -p tcp --dport 26000 -j DROP 2>/dev/null || \
+        iptables -I INPUT ! -i lo -p tcp --dport 26000 -j DROP
+
+    ${WRAPPER} -R start
+
+    if [ -x /usr/syno/sbin/nginx ]; then
+        ln -sf "${NGINX_CONF}" /etc/nginx/sites-enabled/iventoy.conf 2>/dev/null || true
+        /usr/syno/sbin/nginx -s reload 2>/dev/null || true
+    fi
+}
+
+stop_daemon() {
+    rm -f /etc/nginx/sites-enabled/iventoy.conf 2>/dev/null
+    /usr/syno/sbin/nginx -s reload 2>/dev/null || true
+
+    iptables -D INPUT -i lo -p tcp --dport 26000 -j ACCEPT 2>/dev/null || true
+    iptables -D INPUT ! -i lo -p tcp --dport 26000 -j DROP 2>/dev/null || true
+
+    ${WRAPPER} stop
+}
+
+daemon_status() {
+    if [ -f ${PID_FILE} ] && kill -0 $(cat ${PID_FILE}) 2>/dev/null; then
+        return 0
+    fi
+    return 1
+}
+
+case $1 in
+    start)
+        if daemon_status; then
+            echo "iVentoy is already running"
+            exit 0
+        fi
+        echo "Starting iVentoy..."
+        start_daemon
+        ;;
+    stop)
+        if ! daemon_status; then
+            echo "iVentoy is not running"
+            exit 0
+        fi
+        echo "Stopping iVentoy..."
+        stop_daemon
+        ;;
+    status)
+        if daemon_status; then
+            echo "iVentoy is running"
+            exit 0
+        else
+            echo "iVentoy is stopped"
+            exit 1
+        fi
+        ;;
+    *)
+        exit 1
+        ;;
+esac

@@ -1,0 +1,78 @@
+[
+    {
+        "step_title": "iVentoy ISO Storage Configuration",
+        "invalid_next_disabled": true,
+        "items": [
+            {
+                "desc": "<b>iVentoy Free Edition - Personal/Non-commercial use only</b><br/>Max 20 concurrent clients, x86_64 architecture only.<br/><br/>Please specify the folder where your ISO images will be stored. This folder must be on a DSM shared volume (e.g., /volume1/ISO/iVentoy). If the folder does not exist, it will be created during installation.<br/><br/>You can change this path later by editing <code>/var/packages/iventoy/var/iventoy.conf</code> and restarting the package."
+            },
+            {
+                "type": "textfield",
+                "subitems": [
+                    {
+                        "key": "wizard_iso_path",
+                        "desc": "ISO storage path (must be on a DSM volume)",
+                        "defaultValue": "/volume1/ISO/iVentoy",
+                        "validator": {
+                            "allowBlank": false,
+                            "regex": {
+                                "expr": "^/volume[0-9]+/.*",
+                                "errorText": "Path must be under a DSM volume (e.g., /volume1/ISO/iVentoy)"
+                            }
+                        }
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "step_title": "Web UI Authentication",
+        "invalid_next_disabled": true,
+        "items": [
+            {
+                "desc": "<b>Web UI Security</b><br/>iVentoy's built-in web interface has no authentication. This package configures an nginx reverse proxy with HTTP Basic Auth to protect access.<br/><br/>Enter credentials below. If you leave both fields empty, authentication will be disabled (NOT recommended for networks with untrusted clients)."
+            },
+            {
+                "type": "textfield",
+                "subitems": [
+                    {
+                        "key": "wizard_username",
+                        "desc": "Username for Web UI access",
+                        "defaultValue": "iventoy",
+                        "validator": {
+                            "allowBlank": true,
+                            "regex": {
+                                "expr": "/^[a-zA-Z0-9_.-]{1,32}$/",
+                                "errorText": "Only alphanumeric, underscore, dot, dash (1-32 chars)"
+                            }
+                        }
+                    }
+                ]
+            },
+            {
+                "type": "password",
+                "subitems": [
+                    {
+                        "key": "wizard_password",
+                        "desc": "Password for Web UI access",
+                        "validator": {
+                            "allowBlank": true,
+                            "regex": {
+                                "expr": "/^[^<>:*/?\"|]{1,64}$/",
+                                "errorText": "Invalid characters in password"
+                            }
+                        }
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "step_title": "Network Services Notice",
+        "items": [
+            {
+                "desc": "<b>Network Services (require root)</b><br/>iVentoy runs the following services on privileged ports (<b>requires root</b>):<br/><ul><li>DHCP: UDP 67, 68</li><li>TFTP: UDP 69</li><li>ProxyDHCP: UDP 4011</li><li>Web GUI (internal): TCP 26000</li><li>PXE HTTP: TCP 16000</li><li>NBD: TCP 10809</li><li>iSCSI: TCP 3260</li><li>NFS: TCP 12049</li></ul>These will be bound to all interfaces. Ensure no other DHCP/TFTP server conflicts on your network.<br/><br/>The Web UI will be accessible via <b>HTTPS on DSM's standard port</b> (reverse proxy) with the credentials you set above."
+            }
+        ]
+    }
+]

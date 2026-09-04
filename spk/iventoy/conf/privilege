@@ -1,0 +1,6 @@
+# iVentoy privilege configuration for DSM Package Center
+main
+{
+    version="1"
+    execute="root"
+}
