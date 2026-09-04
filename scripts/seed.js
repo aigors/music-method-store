@@ -8,7 +8,11 @@
  */
 
 require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
 const { initDb, getDb, createUser } = require('../src/db');
+
+const DATA_DIR = path.resolve(__dirname, '..', 'data');
 
 // ── Password da riga di comando ──────────────────────────────
 const adminPass = process.argv[2] || 'Admin1234!';
@@ -42,6 +46,30 @@ if (existing) {
   createUser(adminEmail, adminPass);
   db.prepare('UPDATE users SET isAdmin = 1 WHERE id = (SELECT id FROM users WHERE email = ?)').run(adminEmail);
   console.log(`✅  Utente admin creato: ${adminEmail}`);
+}
+
+// ── Pulizia cartelle cache ────────────────────────────────────
+const folders = [
+  { dir: 'pdfs',   label: 'PDF di esempio' },
+  { dir: 'raster', label: 'Raster / thumbnail' },
+  { dir: 'covers', label: 'Cover cache' },
+];
+
+for (const { dir, label } of folders) {
+  const target = path.join(DATA_DIR, dir);
+  if (!fs.existsSync(target)) continue;
+  let count = 0;
+  for (const entry of fs.readdirSync(target)) {
+    const full = path.join(target, entry);
+    const stat = fs.statSync(full);
+    if (stat.isDirectory()) {
+      fs.rmSync(full, { recursive: true, force: true });
+    } else {
+      fs.unlinkSync(full);
+    }
+    count++;
+  }
+  console.log(`🗑️   ${label} (${count} voci): ${target}`);
 }
 
 console.log('\n✨  Fatto!\n');
